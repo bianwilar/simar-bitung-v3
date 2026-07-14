@@ -296,15 +296,21 @@ export function initMap() {
         });
       });
 
-      setTimeout(() => {
-        showPointDetails('pelabuhan', {
-          coords: CONFIG.MAP.DEFAULT_CENTER,
-          nama: 'PPS Bitung',
-          subtitle: 'Pelabuhan Perikanan Samudera (Pusat)',
-          rows: []
-        });
-        mainFocus.openPopup();
-      }, 500);
+      // Buka popup otomatis hanya setelah data tersedia
+      const tryOpenPopup = (attempts = 0) => {
+        if (stateData.pelabuhan) {
+          showPointDetails('pelabuhan', {
+            coords: CONFIG.MAP.DEFAULT_CENTER,
+            nama: 'PPS Bitung',
+            subtitle: 'Pelabuhan Perikanan Samudera (Pusat)',
+            rows: []
+          });
+          mainFocus.openPopup();
+        } else if (attempts < 20) {
+          setTimeout(() => tryOpenPopup(attempts + 1), 500);
+        }
+      };
+      setTimeout(() => tryOpenPopup(), 500);
 
       // ── DATA PELABUHAN ──
       const pelabuhan = [
@@ -725,6 +731,12 @@ export function initMap() {
     }
 export function invalidateMapSize() {
   if (map) map.invalidateSize();
+}
+
+export function updateMapData() {
+  if (!map) return;
+  // Tutup semua popup yang terbuka agar saat dibuka lagi data sudah fresh
+  map.closePopup();
 }
 
 export function addNowcastPolygon(coords, title) {

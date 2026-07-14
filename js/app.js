@@ -319,6 +319,9 @@ async function fetchBMKGData() {
     // Simpan snapshot ke history setiap kali data berhasil dimuat
     try { saveHistorySnapshot(); } catch(e) { console.warn('History snapshot gagal:', e); }
 
+    // Perbarui data peta jika sudah dibuka
+    if (mapModule) mapModule.updateMapData();
+
   } catch(err) {
     console.error('Gagal mengambil data BMKG:', err);
     setCardsBusy(false);
