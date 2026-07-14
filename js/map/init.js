@@ -169,6 +169,19 @@ function showPointDetails(type, data) {
           navigate('water');
         };
         actionBtn.innerHTML = '<i class="fas fa-chart-area mr-1"></i> ANALISIS PERAIRAN ZONA';
+
+      } else if (type === 'kelurahan') {
+        badge.innerText = 'CUACA DARATAN';
+        badge.className = 'px-2.5 py-0.5 rounded-full text-[9px] font-black bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+
+        paramsDiv.innerHTML = data.rows.map(r => `
+          <div class="bg-white/5 p-3 rounded-2xl border border-white/5">
+            <p class="text-[9px] opacity-40 uppercase font-black">${sanitizeHTML(r.label)}</p>
+            <p class="text-xs font-bold" style="color:${r.color || '#fff'}">${sanitizeHTML(r.value)}</p>
+          </div>`).join('');
+
+        actionBtn.onclick = () => navigate('home');
+        actionBtn.innerHTML = '<i class="fas fa-home mr-1"></i> LIHAT BERANDA';
       }
     }
 
@@ -535,11 +548,27 @@ const _popupWidth = () => Math.min(220, window.innerWidth - 32);
           // Build detailed popup
           const popupContent = buildKelurahanWeatherPopup(lat, lng, nearest, weatherData);
           
-          // Update popup with actual data
+          // Update popup dengan data aktual
           L.popup({ maxWidth: _popupWidth(), className: 'bmkg-popup' })
             .setLatLng(e.latlng)
             .setContent(popupContent)
             .openOn(map);
+
+          // Tampilkan info kelurahan di kartu informasi sidebar
+          const cw = weatherData?.data?.[0]?.cuaca?.[0]?.[0];
+          showPointDetails('kelurahan', {
+            coords: [lat, lng],
+            nama: nearest.name,
+            subtitle: `Kelurahan · Kec. ${nearest.kecamatan}`,
+            rows: cw ? [
+              { label: 'Cuaca',       value: cw.weather_desc || '-',                      color: '#22d3ee' },
+              { label: 'Suhu',        value: `${cw.t ?? '-'}°C`,                          color: '#f87171' },
+              { label: 'Kelembaban',  value: `${cw.hu ?? '-'}%`,                          color: '#60a5fa' },
+              { label: 'Angin',       value: `${cw.ws ?? '-'} km/j · ${cw.wd_to ?? '-'}`, color: '#4ade80' },
+              { label: 'Visibilitas', value: cw.vs_text || '-',                            color: '#fbbf24' },
+              { label: 'Tutupan Awan',value: `${cw.tcc ?? '-'}%`,                         color: '#a78bfa' },
+            ] : [{ label: 'Catatan', value: 'Data cuaca tidak tersedia', color: '#f87171' }]
+          });
           
         } catch (err) {
           console.error('Failed to fetch kelurahan weather:', err);
