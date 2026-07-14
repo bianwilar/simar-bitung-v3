@@ -10,6 +10,7 @@ import { sanitizeHTML } from '../utils/security.js';
 import { findNearestKelurahan, isWithinBitung } from '../data/kelurahan.js';
 import { fetchWeatherByKelurahan } from '../data/api.js';
 import { showErrorNotification } from '../utils/security.js';
+import { getWeatherEmoji } from '../utils/share.js';
 
 let map = null;
 let darkMapLayer = null;
