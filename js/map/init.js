@@ -273,7 +273,7 @@ export function initMap() {
 
       darkMapLayer.addTo(map);
 
-      // ── TITIK FOKUS UTAMA (PPS Bitung) ──
+const _popupWidth = () => Math.min(220, window.innerWidth - 32);
       const getPelData = () => stateData.pelabuhan ? stateData.pelabuhan.data[0] : null;
       const getPerData = (keyword) => {
         if (!stateData.perairan) return null;
@@ -285,7 +285,7 @@ export function initMap() {
       const mainFocus = L.marker(CONFIG.MAP.DEFAULT_CENTER, { icon: makeSvgIcon('#ef4444', '⚓', CONFIG.MAP.MARKER_SIZES.MAIN, true), zIndexOffset: 1000 })
         .addTo(map)
         .bindPopup(() => buildRichMarinePopup('PPS Bitung', '⚓ Pelabuhan Perikanan Samudera Utama', 'pelabuhan', getPelData()),
-          { maxWidth: 280, className: 'bmkg-popup' });
+          { maxWidth: Math.min(240, window.innerWidth - 40), className: 'bmkg-popup' });
 
       mainFocus.on('click', () => {
         showPointDetails('pelabuhan', {
@@ -295,22 +295,6 @@ export function initMap() {
           rows: []
         });
       });
-
-      // Buka popup otomatis hanya setelah data tersedia
-      const tryOpenPopup = (attempts = 0) => {
-        if (stateData.pelabuhan) {
-          showPointDetails('pelabuhan', {
-            coords: CONFIG.MAP.DEFAULT_CENTER,
-            nama: 'PPS Bitung',
-            subtitle: 'Pelabuhan Perikanan Samudera (Pusat)',
-            rows: []
-          });
-          mainFocus.openPopup();
-        } else if (attempts < 20) {
-          setTimeout(() => tryOpenPopup(attempts + 1), 500);
-        }
-      };
-      setTimeout(() => tryOpenPopup(), 500);
 
       // ── DATA PELABUHAN ──
       const pelabuhan = [
@@ -369,7 +353,7 @@ export function initMap() {
         const m = L.marker(p.coords, { icon: makeSvgIcon('#22d3ee', '⚓', CONFIG.MAP.MARKER_SIZES.PORT, true) })
           .addTo(map)
           .bindPopup(() => buildRichMarinePopup(p.nama, p.subtitle, 'pelabuhan', getPelData()),
-            { maxWidth: 280, className: 'bmkg-popup' });
+          { maxWidth: _popupWidth(), className: 'bmkg-popup' });
 
         m.on('click', () => {
           showPointDetails('pelabuhan', p);
@@ -551,7 +535,7 @@ export function initMap() {
           const popupContent = buildKelurahanWeatherPopup(lat, lng, nearest, weatherData);
           
           // Update popup with actual data
-          L.popup({ maxWidth: 280, className: 'bmkg-popup' })
+          L.popup({ maxWidth: _popupWidth(), className: 'bmkg-popup' })
             .setLatLng(e.latlng)
             .setContent(popupContent)
             .openOn(map);
