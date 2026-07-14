@@ -1,0 +1,762 @@
+/* ============================================================
+   BASE STYLES
+============================================================ */
+body {
+  background: radial-gradient(1200px 600px at 10% 10%, #0ea5e9 0%, #0b5aa7 35%, #0b1f3a 100%);
+  background-attachment: fixed;
+  font-family: 'Segoe UI', sans-serif;
+  color: white;
+  overflow-x: hidden;
+}
+
+/* Leaflet map container - wajib ada height eksplisit */
+#map {
+  height: 520px;
+  width: 100%;
+  border-radius: 1.75rem;
+  z-index: 0;
+}
+
+@media (max-width: 768px) {
+  #map { height: 360px; }
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-bmkg {
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.glass-nav {
+  background: rgba(11, 31, 58, 0.9);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.page-section { display: none; animation: fadeIn 0.5s ease-in-out; }
+.page-section.active { display: block; }
+
+/* Glow effects */
+.glow-safe  { border-top: 4px solid #22d3ee; box-shadow: 0 0 20px rgba(34,211,238,0.15); }
+.glow-warn  { border-top: 4px solid #fbbf24; box-shadow: 0 0 20px rgba(251,191,36,0.2); }
+
+/* Nav links */
+.nav-link {
+  position: relative;
+  color: rgba(255,255,255,0.55);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  transition: color 0.2s;
+}
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #22d3ee;
+  transition: width 0.3s ease;
+  border-radius: 1px;
+}
+.nav-link:hover {
+  color: white;
+}
+.nav-link.active {
+  color: #22d3ee;
+}
+.nav-link.active::after {
+  width: 100%;
+}
+.nav-link:hover::after {
+  width: 100%;
+}
+
+/* Animations */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes sun-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.sun-icon { animation: sun-spin 8s linear infinite; }
+
+@keyframes cloud-drift {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(6px); }
+}
+.cloud-icon { animation: cloud-drift 3s ease-in-out infinite; }
+
+@keyframes raindrop {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50%       { transform: translateY(3px) scaleY(1.1); }
+}
+.raindrop { animation: raindrop 1.2s ease-in-out infinite; }
+
+/* BMKG Popup (Leaflet) */
+.bmkg-popup .leaflet-popup-content-wrapper {
+  background: rgba(8, 22, 45, 0.97);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 1.5rem;
+  color: white;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  padding: 0;
+}
+.bmkg-popup .leaflet-popup-content { margin: 14px 18px; }
+.bmkg-popup .leaflet-popup-tip { background: rgba(8, 22, 45, 0.97); }
+.bmkg-popup .leaflet-popup-close-button { color: rgba(255,255,255,0.5) !important; top: 10px !important; right: 12px !important; font-size: 18px !important; }
+.bmkg-popup .leaflet-popup-close-button:hover { color: white !important; }
+
+/* Select BMKG */
+.select-bmkg {
+  appearance: none;
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid rgba(255,255,255,0.15);
+  color: white;
+  padding: 0.6rem 2.2rem 0.6rem 1rem;
+  border-radius: 0.85rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2322d3ee'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1.5rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.select-bmkg:hover, .select-bmkg:focus {
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 2px rgba(34,211,238,0.25);
+  outline: none;
+}
+.select-bmkg option { background: #0b1f3a; color: white; font-weight: 600; }
+
+.loading-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem;
+  opacity: 0.5;
+  font-weight: bold;
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-alert {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.65; }
+}
+.animate-alert { animation: pulse-alert 1.5s ease-in-out infinite; }
+
+@keyframes sun-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.sun-icon { animation: sun-spin 15s linear infinite; color: #fbbf24; }
+
+@keyframes cloud-drift {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(10px); }
+}
+.cloud-icon { animation: cloud-drift 4s ease-in-out infinite; color: #e2e8f0; }
+
+@keyframes raindrop {
+  0%   { transform: translateY(-10px); opacity: 0; }
+  50%  { opacity: 1; }
+  100% { transform: translateY(10px); opacity: 0; }
+}
+.raindrop { animation: raindrop 0.8s linear infinite; }
+
+@keyframes flash {
+  0%, 90%, 100% { opacity: 0; }
+  92%, 98%      { opacity: 1; }
+}
+.lightning { animation: flash 3s infinite; color: #fef08a; }
+@keyframes ombak-kiri {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(-12px); }
+}
+@keyframes ombak-kanan {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(12px); }
+}
+.wave-anim-1 { animation: ombak-kiri  var(--ombak-durasi, 6s) ease-in-out infinite; }
+.wave-anim-2 { animation: ombak-kanan var(--ombak-durasi, 4s) ease-in-out infinite; }
+
+/* Animasi kapal */
+@keyframes kapal-goyang-pelan {
+  0%   { transform: translateY(0px)   rotate(0deg); }
+  25%  { transform: translateY(-5px)  rotate(1.5deg); }
+  50%  { transform: translateY(-2px)  rotate(0deg); }
+  75%  { transform: translateY(-6px)  rotate(-1deg); }
+  100% { transform: translateY(0px)   rotate(0deg); }
+}
+@keyframes kapal-goyang-sedang {
+  0%   { transform: translateY(0px)   rotate(-2deg); }
+  20%  { transform: translateY(-10px) rotate(4deg); }
+  40%  { transform: translateY(-4px)  rotate(-3deg); }
+  60%  { transform: translateY(-14px) rotate(5deg); }
+  80%  { transform: translateY(-6px)  rotate(-4deg); }
+  100% { transform: translateY(0px)   rotate(-2deg); }
+}
+@keyframes kapal-goyang-kencang {
+  0%   { transform: translateY(0px)   rotate(-5deg); }
+  15%  { transform: translateY(-16px) rotate(8deg); }
+  30%  { transform: translateY(-5px)  rotate(-7deg); }
+  45%  { transform: translateY(-20px) rotate(10deg); }
+  60%  { transform: translateY(-8px)  rotate(-6deg); }
+  75%  { transform: translateY(-18px) rotate(9deg); }
+  100% { transform: translateY(0px)   rotate(-5deg); }
+}
+.ship-bobbing  { animation: kapal-goyang-pelan   var(--kapal-durasi, 3s) ease-in-out infinite; }
+.ship-wobbling { animation: kapal-goyang-sedang  var(--kapal-durasi, 1.8s) ease-in-out infinite; }
+.ship-storming { animation: kapal-goyang-kencang var(--kapal-durasi, 1s) ease-in-out infinite; }
+
+@keyframes turbine-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.turbine-active { animation: turbine-spin var(--wind-speed-duration, 4s) linear infinite; }
+
+/* Accessibility & UX */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.nav-link:focus-visible,
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Nowcast */
+#nowcast-banner {
+  background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(185,28,28,0.95));
+  backdrop-filter: blur(10px);
+  border-bottom: 2px solid rgba(239,68,68,0.5);
+  box-shadow: 0 4px 20px rgba(239,68,68,0.3);
+  animation: slideDown 0.4s ease-out;
+  z-index: 999;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+@keyframes nowcastPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.nowcast-pulse { animation: nowcastPulse 2s ease-in-out infinite; }
+.nowcast-polygon { cursor: pointer; }
+
+body.has-nowcast main { padding-top: 8.5rem !important; }
+
+/* Skeleton */
+.skeleton-pulse { animation: skeleton 1.5s ease-in-out infinite; }
+@keyframes skeleton {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.1; }
+}
+
+/* Slide in */
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-slideInRight { animation: slideInRight 0.3s ease-out; }
+
+/* MWI & Calendar */
+#mwi-section { transition: opacity 0.4s ease-out; }
+#weekly-calendar-grid button:hover {
+  box-shadow: 0 4px 20px rgba(34, 211, 238, 0.15);
+}
+#weekly-calendar-grid button:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
+}
+
+/* Tooltip maritim */
+.maritime-tooltip {
+  position: relative;
+  cursor: help;
+  border-bottom: 1px dashed rgba(34, 211, 238, 0.5);
+  display: inline;
+}
+.maritime-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(11, 31, 58, 0.97);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  z-index: 100;
+  max-width: 200px;
+  white-space: normal;
+  text-align: center;
+}
+.maritime-tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(34, 211, 238, 0.3);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  z-index: 100;
+}
+.maritime-tooltip:hover::after,
+.maritime-tooltip:focus::after,
+.maritime-tooltip:hover::before,
+.maritime-tooltip:focus::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Touch targets */
+button, [role="button"], select, input[type="range"], a { min-height: 44px; min-width: 44px; }
+.nav-link { min-height: unset; min-width: unset; padding: 0.5rem 0.25rem; }
+
+/* Freshness */
+#refresh-countdown { font-variant-numeric: tabular-nums; }
+.freshness-fresh { color: #22c55e; }
+.freshness-ok    { color: #3b82f6; }
+.freshness-stale { color: #eab308; }
+.freshness-old   { color: #ef4444; }
+
+/* ============================================================
+   PRINT / PDF STYLES
+   ============================================================ */
+
+/* Print-only element (tersembunyi di layar, muncul saat print) */
+.print-only {
+  display: none !important;
+}
+
+@media print {
+  .print-only {
+    display: block !important;
+  }
+
+  /* Reset background & warna untuk print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 1.5cm;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Sembunyikan elemen navigasi & kontrol */
+  nav,
+  footer,
+  #mobile-menu,
+  #error-notification-container,
+  #online-indicator,
+  #nowcast-banner,
+  #nowcast-toast,
+  #nowcast-modal,
+  .no-print,
+  button:not(.pill-param-btn),
+  select,
+  #chart-source-select,
+  #chart-format-select,
+  #btn-download-pdf {
+    display: none !important;
+  }
+
+  /* Area konten yang dicetak */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  #view-charts {
+    display: block !important;
+  }
+
+  /* Sembunyikan section lain saat print dari halaman charts */
+  .page-section:not(#view-charts) {
+    display: none !important;
+  }
+
+  /* Area printable */
+  #charts-printable-area {
+    page-break-inside: avoid;
+  }
+
+  /* Stat cards */
+  #charts-stat-cards {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 1rem !important;
+    margin-bottom: 1.5rem !important;
+    page-break-inside: avoid;
+  }
+
+  /* Card cuaca periode aktif */
+  #active-period-weather-card {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 1rem !important;
+    border-radius: 0.5rem !important;
+    margin-bottom: 1rem !important;
+    page-break-inside: avoid;
+  }
+
+  /* Slider kartu prakiraan - horizontal scroll jadi grid */
+  #forecast-period-cards {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+    gap: 0.75rem !important;
+    margin-bottom: 1rem !important;
+    overflow: visible !important;
+  }
+
+  .forecast-period-card {
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 0.75rem !important;
+    border-radius: 0.5rem !important;
+    page-break-inside: avoid;
+  }
+
+  /* Tombol pill parameter */
+  .pill-param-btn {
+    display: inline-block !important;
+    background: #e0f2fe !important;
+    color: #0c4a6e !important;
+    border: 1px solid #0284c7 !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: 1rem !important;
+    font-size: 0.75rem !important;
+    margin-right: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .pill-param-btn:disabled {
+    opacity: 0.3 !important;
+  }
+
+  /* Area grafik */
+  #chart-bmkg-main {
+    page-break-inside: avoid;
+    max-height: 400px !important;
+  }
+
+  canvas {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Tabel tren */
+  #table-visual-trend {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 0.7rem !important;
+    page-break-inside: auto;
+  }
+
+  #table-visual-trend thead {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+  }
+
+  #table-visual-trend th,
+  #table-visual-trend td {
+    border: 1px solid #cbd5e1 !important;
+    padding: 0.5rem !important;
+    text-align: center !important;
+  }
+
+  #table-visual-trend tbody tr:nth-child(even) {
+    background: #f8fafc !important;
+  }
+
+  /* Tabel prakiraan resmi (sudah punya styling inline putih) */
+  #charts-official-area {
+    display: block !important;
+    background: white !important;
+    color: black !important;
+    padding: 1rem !important;
+  }
+
+  /* Glass effect jadi solid untuk print */
+  .glass,
+  .glass-nav,
+  .glass-bmkg {
+    background: #f8fafc !important;
+    backdrop-filter: none !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  /* Typography print-friendly */
+  h1, h2, h3, h4 {
+    color: #0f172a !important;
+    page-break-after: avoid;
+  }
+
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* Info banner */
+  #charts-info-banner {
+    background: #dbeafe !important;
+    border-left: 4px solid #0284c7 !important;
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+  }
+}
+
+/* ============================================================
+   MOBILE & RESPONSIVE STYLES (max 768px)
+   ============================================================ */
+@media (max-width: 768px) {
+
+  /* ── Layout utama ── */
+  main {
+    padding-top: 5rem !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  /* ── Heading section — kecilkan di mobile ── */
+  h1.text-5xl,
+  h2.text-5xl,
+  h2.text-4xl {
+    font-size: 1.75rem !important;
+    line-height: 1.2 !important;
+  }
+
+  /* ── Header beranda — susun vertikal rapi ── */
+  #view-home > div:first-child {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  #view-home > div:first-child > div:last-child {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+
+  /* ── Cards parameter beranda — 1 kolom ── */
+  #cards-container {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  #cards-container > div {
+    padding: 1rem 1.25rem !important;
+    border-radius: 1.25rem !important;
+  }
+
+  /* ── MWI section ── */
+  #mwi-section .flex {
+    flex-direction: column !important;
+    gap: 1rem !important;
+  }
+
+  #mwi-section .flex-grow {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* ── Rekomendasi aktivitas ── */
+  #activity-recommendations {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  /* ── Live sea state ── */
+  #live-ship-container {
+    bottom: 3.5rem !important;
+  }
+
+  /* ── Kalender mingguan — 3 kolom di mobile ── */
+  #weekly-calendar-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  /* ── Peta ── */
+  #map {
+    height: 280px !important;
+  }
+
+  /* ── Hero card pelabuhan ── */
+  #view-ports .glass.rounded-\[2\.5rem\] {
+    padding: 1.25rem !important;
+    border-radius: 1.5rem !important;
+  }
+
+  /* ── Forecast period cards — 2 kolom di mobile ── */
+  #forecast-period-cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  /* ── Port forecast cards — 1 kolom di mobile ── */
+  #port-forecast-cards {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  /* ── Tabel perairan — scroll horizontal ── */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .overflow-x-auto::after {
+    content: '← geser →';
+    display: block;
+    text-align: center;
+    font-size: 10px;
+    color: rgba(255,255,255,0.25);
+    padding: 4px 0 0;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* ── Charts stat cards — 2 kolom ── */
+  #charts-stat-cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  /* ── History summary cards — 2 kolom ── */
+  #history-summary {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+
+  /* ── History klasifikasi tombol — wrap ── */
+  .history-klasifikasi-btn {
+    padding: 0.5rem 0.875rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* ── Halaman riwayat controls ── */
+  #view-history .glass.p-5 .flex {
+    flex-wrap: wrap !important;
+    gap: 0.75rem !important;
+  }
+
+  /* ── Panduan simulator ── */
+  #view-guide .grid.lg\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Grafik chart ── */
+  .h-\[500px\] { height: 280px !important; }
+  .h-\[380px\] { height: 240px !important; }
+  .h-\[400px\] { height: 240px !important; }
+
+  /* ── Glass padding dikurangi ── */
+  .p-8 { padding: 1.25rem !important; }
+  .p-10 { padding: 1.5rem !important; }
+  .md\:p-12 { padding: 1.25rem !important; }
+  .p-6 { padding: 1rem !important; }
+
+  /* ── Border radius dikurangi ── */
+  .rounded-\[2\.5rem\] { border-radius: 1.5rem !important; }
+  .rounded-\[2rem\]    { border-radius: 1.25rem !important; }
+
+  /* ── Sembunyikan elemen yang tidak penting di mobile ── */
+  .maritime-tooltip::after,
+  .maritime-tooltip::before {
+    display: none !important;
+  }
+
+  /* ── Scrollbar hide untuk horizontal scroll ── */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  /* ── Pill parameter buttons wrap ── */
+  .flex.flex-wrap.gap-3.pt-4 {
+    gap: 0.5rem !important;
+  }
+
+  .pill-param-btn {
+    padding: 0.5rem 0.875rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* ── Nowcast banner ── */
+  #nowcast-banner .flex {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    padding: 0.75rem !important;
+  }
+
+  /* ── Select dropdown full width ── */
+  .select-bmkg {
+    width: 100% !important;
+    font-size: 0.8rem !important;
+  }
+}

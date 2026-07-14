@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simar Bitung - Sistem Informasi Maritim</title>
+  <meta name="description" content="Sistem Informasi Maritim Bitung - Pemantauan real-time kondisi perairan, cuaca, gelombang, dan pelabuhan di Kota Bitung." />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Simar Bitung - Sistem Informasi Maritim" />
+  <meta property="og:description" content="Pemantauan real-time kondisi perairan, cuaca, gelombang, dan pelabuhan di Kota Bitung, Sulawesi Utara." />
+  <meta property="og:locale" content="id_ID" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="SIMAR Bitung" />
+  <meta name="keywords" content="cuaca maritim bitung, kondisi laut bitung, BMKG bitung, pelabuhan bitung, informasi maritim sulawesi utara" />
+  <meta name="geo.region" content="ID-SA" />
+  <meta name="geo.placename" content="Kota Bitung, Sulawesi Utara" />
+  <meta name="geo.position" content="1.446;125.208" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230b1f3a'/><text y='.9em' font-size='80' x='10'>⚓</text></svg>">
+  <link rel="preconnect" href="https://api.bmkg.go.id">
+  <link rel="preconnect" href="https://peta-maritim.bmkg.go.id">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <!-- Tailwind CDN untuk development - akan diganti Tailwind CLI saat production build -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- html2canvas & jsPDF untuk export PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+  <!-- SheetJS untuk export Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+  <!-- Skip Navigation for Accessibility -->
+  <a href="#main-content" 
+     class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-cyan-500 focus:text-white focus:rounded-lg focus:font-bold focus:shadow-lg">
+    Skip to main content
+  </a>
+
+  <!-- Error Notification Container -->
+  <div id="error-notification-container" class="fixed top-20 right-4 z-[1001] max-w-md space-y-3" style="pointer-events: none;"></div>
+
+  <!-- Online/Offline Status Indicator -->
+  <div id="online-indicator" class="fixed top-16 left-1/2 -translate-x-1/2 z-[1001] bg-red-500/90 text-white px-6 py-3 rounded-full text-sm font-bold shadow-lg hidden">
+    <i class="fas fa-wifi-slash mr-2"></i>
+    Offline - Data dari cache
+  </div>
+
+  <!-- Nowcast / Peringatan Dini Banner (muncul di bawah navbar saat ada alert aktif) -->
+  <div id="nowcast-banner" class="fixed top-16 w-full z-[998] hidden" role="alert" aria-live="assertive">
+    <div class="max-w-7xl mx-auto px-4 py-2 flex items-center gap-3">
+      <span class="text-xl nowcast-pulse flex-shrink-0">🚨</span>
+      <div class="flex-grow min-w-0">
+        <span class="text-xs font-black uppercase tracking-wider opacity-80">PERINGATAN DINI BMKG</span>
+        <p id="nowcast-title" class="text-sm font-bold truncate">-</p>
+        <p id="nowcast-desc" class="text-xs opacity-80 truncate hidden md:block">-</p>
+      </div>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <span id="nowcast-expires" class="text-xs opacity-70 hidden md:inline">-</span>
+        <button onclick="showNowcastDetail()" 
+                class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg font-bold transition whitespace-nowrap">
+          Detail
+        </button>
+        <button onclick="dismissNowcastBanner()" 
+                class="text-white/70 hover:text-white transition p-1" 
+                aria-label="Tutup banner peringatan">
+          <i class="fas fa-times text-sm"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nowcast Toast Notification (muncul sekali saat alert baru terdeteksi) -->
+  <div id="nowcast-toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1002] hidden max-w-sm w-full px-4">
+    <div class="bg-red-600/95 backdrop-blur-md text-white p-4 rounded-2xl shadow-2xl border border-red-400/30">
+      <div class="flex items-start gap-3">
+        <span class="text-2xl flex-shrink-0 nowcast-pulse">⚠️</span>
+        <div class="flex-grow">
+          <p class="font-black text-sm mb-1">Peringatan Dini Cuaca Aktif!</p>
+          <p id="nowcast-toast-text" class="text-xs opacity-80 leading-relaxed">-</p>
+        </div>
+        <button onclick="document.getElementById('nowcast-toast').classList.add('hidden')" 
+                class="text-white/60 hover:text-white flex-shrink-0" 
+                aria-label="Tutup notifikasi">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <button onclick="showNowcastDetail(); document.getElementById('nowcast-toast').classList.add('hidden');" 
+              class="mt-3 w-full bg-white/20 hover:bg-white/30 py-2 rounded-xl text-xs font-bold transition">
+        Lihat Detail Peringatan
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal Detail Nowcast -->
+  <div id="nowcast-modal" class="fixed inset-0 z-[2000] hidden flex items-center justify-center p-4" 
+       style="background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);">
+    <div class="glass max-w-lg w-full rounded-[2rem] p-6 border border-red-500/30 shadow-2xl">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="text-3xl">🚨</span>
+        <div>
+          <p class="text-xs opacity-50 uppercase tracking-wider">Peringatan Dini BMKG</p>
+          <h3 id="nowcast-modal-title" class="font-black text-lg leading-tight">-</h3>
+        </div>
+        <button onclick="document.getElementById('nowcast-modal').classList.add('hidden')" 
+                class="ml-auto text-white/60 hover:text-white transition" 
+                aria-label="Tutup modal">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      <div class="space-y-3">
+        <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+          <p id="nowcast-modal-desc" class="text-sm leading-relaxed opacity-90">-</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-white/5 rounded-xl p-3">
+            <p class="text-xs opacity-40 uppercase mb-1">Mulai Berlaku</p>
+            <p id="nowcast-modal-effective" class="text-sm font-bold">-</p>
+          </div>
+          <div class="bg-white/5 rounded-xl p-3">
+            <p class="text-xs opacity-40 uppercase mb-1">Berakhir</p>
+            <p id="nowcast-modal-expires" class="text-sm font-bold">-</p>
+          </div>
+        </div>
+        <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-3">
+          <p class="text-xs font-bold text-yellow-400 mb-1">Sumber Resmi BMKG</p>
+          <p class="text-xs opacity-60">Data diambil dari sistem peringatan dini BMKG (Common Alerting Protocol)</p>
+        </div>
+      </div>
+      <button onclick="navigate('map'); document.getElementById('nowcast-modal').classList.add('hidden');" 
+              class="mt-4 w-full bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 py-3 rounded-xl text-sm font-bold transition">
+        <i class="fas fa-map-marked-alt mr-2"></i>Lihat di Peta
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       NAVBAR
+  ============================================================ -->
+  <nav class="fixed top-0 w-full z-[1000] glass-nav">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex justify-between items-center h-16">
+
+        <div class="flex items-center gap-3 cursor-pointer" onclick="navigate('home')">
+          <div class="text-2xl p-2 bg-cyan-500/20 rounded-xl">⚓</div>
+          <span class="font-black text-xl tracking-tighter uppercase">SIMAR<span class="text-cyan-400">Bitung</span></span>
+        </div>
+
+        <!-- Desktop Nav — masing-masing punya ID unik -->
+        <div class="hidden md:flex space-x-8 items-center">
+          <button onclick="navigate('home')"  id="nav-home"  class="nav-link active text-xs tracking-[0.2em] transition-all" aria-label="Navigasi ke halaman beranda" aria-current="page">BERANDA</button>
+          <button onclick="navigate('map')"   id="nav-map"   class="nav-link text-xs tracking-[0.2em] transition-all relative" aria-label="Navigasi ke halaman peta maritim">
+            PETA
+            <span id="nav-nowcast-dot" class="hidden absolute -top-1 -right-2 w-2 h-2 bg-red-500 rounded-full nowcast-pulse"></span>
+          </button>
+          <button onclick="navigate('water')" id="nav-water" class="nav-link text-xs tracking-[0.2em] transition-all" aria-label="Navigasi ke halaman kondisi perairan">PERAIRAN</button>
+          <button onclick="navigate('ports')" id="nav-ports" class="nav-link text-xs tracking-[0.2em] transition-all" aria-label="Navigasi ke halaman pelabuhan">PELABUHAN</button>
+          <button onclick="navigate('charts')" id="nav-charts" class="nav-link text-xs tracking-[0.2em] transition-all" aria-label="Navigasi ke halaman grafik dan data">GRAFIK & DATA</button>
+          <button onclick="navigate('history')" id="nav-history" class="nav-link text-xs tracking-[0.2em] transition-all" aria-label="Navigasi ke halaman riwayat data">RIWAYAT</button>
+          <button onclick="navigate('guide')" id="nav-guide" class="nav-link text-xs tracking-[0.2em] transition-all" aria-label="Navigasi ke panduan keamanan berlayar">PANDUAN AMAN</button>
+        </div>
+
+        <button id="mobile-btn" class="md:hidden text-2xl p-2">
+          <i class="fas fa-bars" id="hamburger-icon"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="hidden md:hidden glass border-t border-white/10 p-4 space-y-2">
+      <button onclick="navigate('home');  closeMobileMenu()" class="block w-full text-left font-bold px-4 py-2 rounded-xl hover:bg-white/10 transition">⚓ BERANDA</button>
+      <button onclick="navigate('map');   closeMobileMenu()" class="block w-full text-left font-bold px-4 py-2 rounded-xl hover:bg-white/10 transition">🗺️ PETA</button>
+      <button onclick="navigate('water'); closeMobileMenu()" class="block w-full text-left font-bold px-4 py-2 rounded-xl hover:bg-white/10 transition">🌊 PERAIRAN</button>
+      <button onclick="navigate('ports'); closeMobileMenu()" class="block w-full text-left font-bold px-4 py-2 rounded-xl hover:bg-white/10 transition">🚢 PELABUHAN</button>
+      <button onclick="navigate('charts'); closeMobileMenu()" class="block w-full text-left font-bold px-4 py-2 rounded-xl hover:bg-white/10 transition">📊 GRAFIK & DATA</button>
+      <button onclick="navigate('history'); closeMobileMenu()" class="block w-full text-left font-bold px-4 py-2 rounded-xl hover:bg-white/10 transition">📈 RIWAYAT</button>
+      <button onclick="navigate('guide'); closeMobileMenu()" class="block w-full text-left font-bold px-4 py-2 rounded-xl hover:bg-white/10 transition">📖 PANDUAN AMAN</button>
+    </div>
+  </nav>
+
+  <!-- ============================================================
+       MAIN CONTENT
+  ============================================================ -->
+  <main id="main-content" class="flex-grow pt-24 pb-12 px-4 max-w-7xl mx-auto w-full" role="main">
+
+    <!-- ===== BERANDA ===== -->
+    <section id="view-home" class="page-section active" aria-label="Beranda - Tampilan Parameter Cuaca">
+      <div class="flex flex-col md:flex-row justify-between items-end gap-6 mb-10">
+        <div>
+          <h1 class="text-3xl md:text-5xl font-black tracking-tighter mb-2">Tampilan <span class="text-cyan-400">Parameter</span></h1>
+          <p class="text-white/60">Pemantauan Perairan dan Pelabuhan Bitung.</p>
+        </div>
+        <div class="flex gap-4">
+          <div class="glass px-6 py-3 rounded-2xl text-sm border-l-4 border-cyan-400" role="status" aria-live="polite" aria-label="Waktu update terakhir">
+            <p class="text-[10px] text-white/40 uppercase">Update Terakhir</p>
+            <p class="font-bold" id="lastUpdate">--:-- WITA</p>
+            <p class="text-[10px] mt-0.5" id="lastUpdateFreshness"></p>
+          </div>
+          <div class="glass px-4 py-3 rounded-2xl text-sm border-l-4 border-white/20 hidden md:flex flex-col justify-center" aria-label="Countdown refresh berikutnya">
+            <p class="text-[10px] text-white/40 uppercase">Refresh Dalam</p>
+            <p class="font-bold font-mono" id="refresh-countdown">15:00</p>
+          </div>
+          <button onclick="refreshData()" 
+                  class="bg-cyan-600 hover:bg-cyan-500 px-6 py-3 rounded-2xl font-bold transition flex items-center gap-3 min-h-[44px] min-w-[44px]"
+                  aria-label="Refresh data cuaca dari BMKG">
+            <i id="sync-icon" class="fas fa-sync-alt" aria-hidden="true"></i> REFRESH
+          </button>
+        </div>
+      </div>
+
+      <div id="cards-container" 
+           class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
+           role="region" 
+           aria-label="Parameter cuaca maritim"
+           aria-live="polite"
+           aria-busy="true"></div>
+
+      <!-- MWI: Marine Weather Index -->
+      <div id="mwi-section" class="mb-12 hidden">
+        <div class="glass p-6 rounded-[2rem] border border-white/10">
+          <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+
+            <!-- Skor Utama -->
+            <div class="flex items-center gap-6 flex-shrink-0">
+              <div class="relative w-24 h-24 flex-shrink-0">
+                <svg class="w-24 h-24 -rotate-90" viewBox="0 0 96 96" aria-hidden="true">
+                  <circle cx="48" cy="48" r="40" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10"/>
+                  <circle id="mwi-arc" cx="48" cy="48" r="40" fill="none" stroke="#22d3ee"
+                          stroke-width="10" stroke-linecap="round"
+                          stroke-dasharray="251.2" stroke-dashoffset="251.2"
+                          style="transition: stroke-dashoffset 1s ease-out, stroke 0.5s;"/>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <span id="mwi-score" class="text-2xl font-black leading-none">--</span>
+                  <span class="text-[9px] opacity-50 font-bold">/ 10</span>
+                </div>
+              </div>
+              <div>
+                <p class="text-[10px] font-black uppercase opacity-40 tracking-widest mb-1">Marine Weather Index</p>
+                <p id="mwi-label" class="text-xl font-black">Memuat...</p>
+                <p id="mwi-sublabel" class="text-xs opacity-60 mt-0.5">--</p>
+              </div>
+            </div>
+
+            <!-- Komponen Skor -->
+            <div class="flex-grow grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
+              <div class="bg-white/5 rounded-2xl p-3">
+                <p class="text-[9px] opacity-40 uppercase font-black mb-2">Gelombang</p>
+                <div class="w-full bg-white/10 rounded-full h-1.5 mb-1">
+                  <div id="mwi-bar-wave" class="h-1.5 rounded-full transition-all duration-700" style="width:0%"></div>
+                </div>
+                <p id="mwi-val-wave" class="text-xs font-black text-cyan-400">--</p>
+              </div>
+              <div class="bg-white/5 rounded-2xl p-3">
+                <p class="text-[9px] opacity-40 uppercase font-black mb-2">Angin</p>
+                <div class="w-full bg-white/10 rounded-full h-1.5 mb-1">
+                  <div id="mwi-bar-wind" class="h-1.5 rounded-full transition-all duration-700" style="width:0%"></div>
+                </div>
+                <p id="mwi-val-wind" class="text-xs font-black text-orange-400">--</p>
+              </div>
+              <div class="bg-white/5 rounded-2xl p-3">
+                <p class="text-[9px] opacity-40 uppercase font-black mb-2">Visibilitas</p>
+                <div class="w-full bg-white/10 rounded-full h-1.5 mb-1">
+                  <div id="mwi-bar-vis" class="h-1.5 rounded-full transition-all duration-700" style="width:0%"></div>
+                </div>
+                <p id="mwi-val-vis" class="text-xs font-black text-green-400">--</p>
+              </div>
+              <div class="bg-white/5 rounded-2xl p-3">
+                <p class="text-[9px] opacity-40 uppercase font-black mb-2">Cuaca</p>
+                <div class="w-full bg-white/10 rounded-full h-1.5 mb-1">
+                  <div id="mwi-bar-weather" class="h-1.5 rounded-full transition-all duration-700" style="width:0%"></div>
+                </div>
+                <p id="mwi-val-weather" class="text-xs font-black text-yellow-400">--</p>
+              </div>
+            </div>
+
+            <!-- Tombol Bagikan -->
+            <div class="flex gap-2 flex-shrink-0">
+              <button onclick="shareToWhatsApp()"
+                      class="flex items-center gap-2 bg-green-600/20 hover:bg-green-600/40 border border-green-500/30 text-green-400 px-4 py-2.5 rounded-xl text-xs font-bold transition min-h-[44px]"
+                      aria-label="Bagikan kondisi cuaca via WhatsApp">
+                <i class="fab fa-whatsapp text-lg" aria-hidden="true"></i>
+                <span class="hidden md:inline">Bagikan</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rekomendasi Aktivitas Harian Dinamis dengan Visualisasi Laut Riil -->
+      <h3 class="text-2xl font-bold mb-6 flex items-center gap-3">
+        <i class="fas fa-ship text-cyan-400" aria-hidden="true"></i> REKOMENDASI &amp; VISUALISASI LAUT RIIL
+      </h3>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+        <!-- Kolom Kiri: 3 Kartu Rekomendasi (2/3 Width) -->
+        <div id="activity-recommendations" class="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- JS Populated -->
+        </div>
+
+        <!-- Kolom Kanan: Live Ocean Visualizer (1/3 Width) -->
+        <div class="lg:col-span-1 flex flex-col">
+          <div class="glass p-6 rounded-[2rem] border border-white/10 flex-grow flex flex-col justify-between relative overflow-hidden min-h-[280px] bg-gradient-to-b from-blue-950/20 to-cyan-900/35">
+            <div>
+              <span class="text-[9px] font-black tracking-widest text-cyan-400 uppercase">Live Sea State (BMKG)</span>
+              <h4 class="font-black text-lg text-white mt-1">Kondisi Fisik Laut Bitung</h4>
+              <p class="text-[10px] text-white/50 mt-1" id="live-visual-desc">Mengambil parameter gelombang &amp; angin...</p>
+            </div>
+
+            <!-- Wind Turbine / Propeller Animation -->
+            <div class="absolute top-16 right-6 z-20 flex flex-col items-center">
+              <div id="live-wind-turbine" class="w-12 h-12 border-2 border-white/20 rounded-full flex items-center justify-center relative bg-white/5" style="transform: rotate(0deg);">
+                <div class="absolute w-1.5 h-10 bg-white/60 rounded-full" style="top:1px; left:21px; transform-origin: 3px 19px;"></div>
+                <div class="absolute w-10 h-1.5 bg-white/60 rounded-full" style="top:21px; left:1px; transform-origin: 21px 3px;"></div>
+                <div class="w-2.5 h-2.5 bg-cyan-400 rounded-full z-30"></div>
+              </div>
+              <span class="text-[9px] font-bold text-white/40 mt-1 uppercase" id="live-wind-label">-- Knot</span>
+            </div>
+
+            <!-- Animasi Kapal di Ombak Riil -->
+            <div class="absolute bottom-16 left-1/3 -translate-x-1/2 z-20 transition-all duration-500 ease-out" id="live-ship-container">
+              <svg id="live-ship-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 60" width="80" height="60" class="filter drop-shadow-[0_6px_10px_rgba(0,0,0,0.6)]">
+                <!-- Tiang layar -->
+                <line x1="40" y1="10" x2="40" y2="38" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round"/>
+                <!-- Layar utama -->
+                <path d="M40 12 L58 34 L40 34 Z" fill="#f0f9ff" opacity="0.92" stroke="#bae6fd" stroke-width="0.8"/>
+                <!-- Layar kecil depan -->
+                <path d="M40 18 L24 32 L40 32 Z" fill="#e0f2fe" opacity="0.85" stroke="#7dd3fc" stroke-width="0.6"/>
+                <!-- Bendera -->
+                <path d="M40 10 L48 13 L40 16 Z" fill="#f97316" stroke="#ea580c" stroke-width="0.5"/>
+                <!-- Badan kapal -->
+                <path d="M16 38 Q18 44 20 46 L60 46 Q62 44 64 38 Z" fill="#1e40af" stroke="#3b82f6" stroke-width="1.2"/>
+                <!-- Dek kapal -->
+                <rect x="20" y="36" width="40" height="4" rx="2" fill="#2563eb" stroke="#60a5fa" stroke-width="0.8"/>
+                <!-- Jendela -->
+                <circle cx="30" cy="42" r="2.5" fill="#93c5fd" opacity="0.9"/>
+                <circle cx="40" cy="42" r="2.5" fill="#93c5fd" opacity="0.9"/>
+                <circle cx="50" cy="42" r="2.5" fill="#93c5fd" opacity="0.9"/>
+                <!-- Lunas kapal -->
+                <path d="M20 46 Q40 52 60 46" fill="#1e3a8a" stroke="#1d4ed8" stroke-width="1"/>
+                <!-- Cerobong asap kecil -->
+                <rect x="36" y="30" width="6" height="8" rx="1" fill="#374151" stroke="#6b7280" stroke-width="0.6"/>
+                <ellipse cx="39" cy="30" rx="3" ry="1.2" fill="#4b5563"/>
+              </svg>
+            </div>
+
+            <!-- Air Laut Bergoyang -->
+            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none z-10">
+              <svg viewBox="0 0 120 28" class="relative block w-full h-[70px] transition-transform duration-500" id="live-wave-svg">
+                <path d="M0 15 Q 30 0, 60 15 T 120 15 L 120 28 L 0 28 Z" fill="#0ea5e9" opacity="0.45" class="wave-anim-1"></path>
+                <path d="M0 18 Q 30 5, 60 18 T 120 18 L 120 28 L 0 28 Z" fill="#0369a1" class="wave-anim-2"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="text-2xl font-bold mb-6 flex items-center gap-3">
+        <i class="fas fa-broadcast-tower text-red-400" aria-hidden="true"></i> NOTIFIKASI NAVIGASI
+      </h3>
+      <div id="alerts-container" 
+           class="grid grid-cols-1 md:grid-cols-2 gap-4"
+           role="region"
+           aria-label="Notifikasi dan peringatan navigasi maritim"
+           aria-live="polite"></div>
+
+      <!-- KALENDER CUACA MINGGUAN -->
+      <div id="weekly-calendar-section" class="hidden mt-12">
+        <h3 class="text-2xl font-bold mb-6 flex items-center gap-3">
+          <i class="fas fa-calendar-alt text-cyan-400" aria-hidden="true"></i> PRAKIRAAN CUACA MINGGUAN
+        </h3>
+        <div id="weekly-calendar-grid" class="grid grid-cols-3 md:grid-cols-7 gap-3" role="region" aria-label="Kalender cuaca 7 hari ke depan">
+          <!-- JS Populated -->
+        </div>
+        <!-- Detail hari yang dipilih -->
+        <div id="weekly-day-detail" class="hidden mt-4 glass p-5 rounded-[2rem] border border-white/10">
+          <div class="flex items-center justify-between mb-4">
+            <h4 id="weekly-detail-title" class="font-black text-lg">-</h4>
+            <button onclick="document.getElementById('weekly-day-detail').classList.add('hidden')"
+                    class="text-white/40 hover:text-white transition min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    aria-label="Tutup detail">
+              <i class="fas fa-times" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div id="weekly-detail-content" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PETA ===== -->
+    <section id="view-map" class="page-section">
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+        <div>
+          <p class="text-xs tracking-[0.3em] uppercase opacity-60 font-bold mb-1">Kota Bitung, Sulawesi Utara</p>
+          <h2 class="text-3xl md:text-4xl font-black">🗺️ PETA MARITIM BITUNG</h2>
+        </div>
+        <div class="flex flex-wrap gap-2 items-center">
+          <button id="map-theme-btn" onclick="toggleMapTheme()" class="glass px-4 py-2 rounded-xl text-xs hover:bg-white/10 transition flex items-center gap-2">
+            <i class="fas fa-layer-group text-cyan-400"></i> <span id="map-theme-label">Peta Satelit</span>
+          </button>
+          <button onclick="resetMap()" class="glass px-4 py-2 rounded-xl text-xs hover:bg-white/10 transition flex items-center gap-1.5">
+            <i class="fas fa-crosshairs text-cyan-400"></i> Reset Fokus
+          </button>
+        </div>
+      </div>
+
+      <!-- Kontainer Grid Map & Panel -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Sidebar Panel Kiri -->
+        <div class="lg:col-span-1 flex flex-col gap-6 order-2 lg:order-1">
+          <!-- Card Detail -->
+          <div class="glass p-6 rounded-[2rem] border border-white/10 flex flex-col justify-between min-h-[350px]">
+            <!-- Placeholder -->
+            <div id="map-detail-placeholder" class="my-auto flex flex-col justify-center items-center text-center p-4">
+              <div class="text-5xl text-cyan-400 mb-4 animate-bounce">📍</div>
+              <h4 class="font-black text-lg text-white mb-2">Pilih Titik Lokasi</h4>
+              <p class="text-xs text-white/50 leading-relaxed">Klik marker pelabuhan, stasiun BMKG, atau zona perairan di peta untuk melihat informasi cuaca real-time dan navigasi detail.</p>
+            </div>
+
+            <!-- Content Detail (Hidden by default) -->
+            <div id="map-detail-content" class="hidden flex flex-col justify-between h-full">
+              <div class="space-y-4">
+                <div class="flex justify-between items-start">
+                  <span id="map-detail-badge" class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider">--</span>
+                  <span id="map-detail-coords" class="text-[10px] font-mono opacity-50">--</span>
+                </div>
+                <div>
+                  <h3 id="map-detail-title" class="text-xl font-black text-white leading-tight">--</h3>
+                  <p id="map-detail-subtitle" class="text-xs font-bold text-cyan-400/80 uppercase tracking-widest mt-1">--</p>
+                </div>
+                
+                <!-- Parameter Box -->
+                <div id="map-detail-params" class="grid grid-cols-2 gap-3 pt-2">
+                  <!-- JS populated -->
+                </div>
+              </div>
+
+              <!-- Tombol Aksi Navigasi -->
+              <div class="mt-6 pt-4 border-t border-white/10">
+                <button id="map-detail-action" class="w-full bg-cyan-600 hover:bg-cyan-500 py-3 rounded-xl font-black text-xs tracking-wider uppercase transition flex items-center justify-center gap-2 text-white">
+                  --
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Legenda & Layer Filter -->
+          <div class="glass p-6 rounded-[2rem] border border-white/10">
+            <p class="text-[10px] uppercase tracking-[0.2em] opacity-60 font-black mb-4">Filter &amp; Legenda Peta</p>
+            <div class="space-y-3">
+              <div onclick="toggleLayer('pelabuhan')" class="flex justify-between items-center bg-white/5 hover:bg-white/10 border border-white/5 p-3 rounded-2xl cursor-pointer transition">
+                <div class="flex items-center gap-3">
+                  <span class="w-3.5 h-3.5 rounded-full border border-white/20" style="background:#22d3ee"></span>
+                  <span class="text-xs font-bold text-white/80">Pelabuhan Laut</span>
+                </div>
+                <span id="filter-badge-pelabuhan" class="px-2 py-0.5 rounded text-[8px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">AKTIF</span>
+              </div>
+              <div onclick="toggleLayer('bmkg')" class="flex justify-between items-center bg-white/5 hover:bg-white/10 border border-white/5 p-3 rounded-2xl cursor-pointer transition">
+                <div class="flex items-center gap-3">
+                  <span class="w-3.5 h-3.5 rounded-full border border-white/20" style="background:#fbbf24"></span>
+                  <span class="text-xs font-bold text-white/80">Stasiun BMKG</span>
+                </div>
+                <span id="filter-badge-bmkg" class="px-2 py-0.5 rounded text-[8px] font-black bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">AKTIF</span>
+              </div>
+              <div onclick="toggleLayer('perairan')" class="flex justify-between items-center bg-white/5 hover:bg-white/10 border border-white/5 p-3 rounded-2xl cursor-pointer transition">
+                <div class="flex items-center gap-3">
+                  <span class="w-3.5 h-3.5 rounded-full border border-white/20" style="background:#4ade80"></span>
+                  <span class="text-xs font-bold text-white/80">Zona Perairan</span>
+                </div>
+                <span id="filter-badge-perairan" class="px-2 py-0.5 rounded text-[8px] font-black bg-green-500/20 text-green-300 border border-green-500/30">AKTIF</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Peta (2/3 width) -->
+        <div class="lg:col-span-2 glass p-3 rounded-[2.5rem] relative order-1 lg:order-2">
+          <div id="map"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PERAIRAN ===== -->
+    <section id="view-water" class="page-section">
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+        <div>
+          <p class="text-xs tracking-[0.3em] uppercase opacity-60 font-bold mb-1">Prakiraan Cuaca Maritim</p>
+          <h2 id="water-title" class="text-2xl md:text-3xl font-black uppercase italic tracking-tighter leading-none">Perairan Bitung – Likupang</h2>
+        </div>
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <!-- Dropdown Pilih Zona Perairan -->
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] uppercase opacity-60 font-bold tracking-widest">Pilih Zona Perairan</label>
+            <select id="select-perairan" class="select-bmkg" onchange="switchPerairan(this.value)">
+              <option value="N.08_Perairan Bitung - Likupang.json">🌊 N.08 — Perairan Bitung – Likupang</option>
+              <option value="N.07_Perairan Kep. Sitaro.json">🌊 N.07 — Perairan Kep. Sitaro</option>
+              <option value="N.01_Perairan utara Sulawesi Utara.json">🌊 N.01 — Perairan Utara Sulawesi Utara</option>
+              <option value="N.02_Laut Sulawesi bagian barat.json">🌊 N.02 — Laut Sulawesi Bagian Barat</option>
+              <option value="N.10_Laut Maluku bagian selatan.json">🌊 N.10 — Laut Maluku Bagian Selatan</option>
+            </select>
+          </div>
+          <div class="glass-bmkg px-5 py-3 rounded-2xl border-l-4 border-cyan-400">
+            <p class="text-[10px] uppercase opacity-60 font-bold mb-1">Berlaku Sampai:</p>
+            <p class="text-sm font-bold" id="perairan-valid-until">--</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Banner Peringatan (dinamis) -->
+      <div id="water-warning-banner" class="mb-8 hidden p-6 rounded-[2rem] flex items-center gap-6 backdrop-blur-md">
+        <div class="w-16 h-16 flex items-center justify-center rounded-2xl animate-alert shadow-lg flex-shrink-0">
+          <i class="fas fa-exclamation-triangle text-2xl"></i>
+        </div>
+        <div>
+          <h4 class="font-black text-xl uppercase italic" id="water-warning-title">Peringatan</h4>
+          <p class="text-sm opacity-80" id="water-warning-desc">--</p>
+        </div>
+      </div>
+
+      <!-- Kondisi Utama (dinamis) -->
+      <div id="water-main-content">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+          <div class="glass-bmkg p-6 rounded-[2rem] flex flex-col items-center justify-center text-center shadow-2xl">
+            <div class="relative mb-4">
+              <i id="water-weather-icon" class="fas fa-cloud-showers-heavy text-5xl text-blue-300"></i>
+              <div class="absolute -top-1 -right-1 bg-yellow-500 w-3 h-3 rounded-full animate-ping"></div>
+            </div>
+            <h3 id="water-weather-name" class="text-xl font-black mb-1">--</h3>
+            <p class="text-4xl font-black tracking-tighter text-cyan-400" id="water-temp">--°C</p>
+            <div class="mt-3 flex gap-3 text-[10px] font-bold opacity-60 uppercase tracking-widest">
+              <span id="water-rh"><i class="fas fa-tint mr-1"></i>--% RH</span>
+              <span id="water-vis"><i class="fas fa-eye mr-1"></i>-- KM</span>
+            </div>
+          </div>
+
+          <div class="lg:col-span-2 space-y-4">
+            <div class="glass-bmkg p-5 rounded-[2rem] flex items-center gap-5 border-r-4 border-cyan-500/50">
+              <div class="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center text-2xl text-cyan-400 shadow-inner flex-shrink-0">
+                <i class="fas fa-wind"></i>
+              </div>
+              <div>
+                <p class="text-[10px] tracking-[0.2em] opacity-60 uppercase font-black mb-0.5">Kecepatan &amp; Arah Angin</p>
+                <p id="water-wind-dir" class="text-xl font-black uppercase italic">--</p>
+                <div class="flex items-baseline gap-2">
+                  <span id="water-wind-speed" class="text-2xl font-black text-cyan-400">--</span>
+                  <span class="text-sm font-bold opacity-60 italic">Knots</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-bmkg p-5 rounded-[2rem] flex items-center gap-5 border-r-4 border-yellow-500/50">
+              <div class="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center text-2xl text-blue-400 shadow-inner flex-shrink-0">
+                <i class="fas fa-water"></i>
+              </div>
+              <div>
+                <p class="text-[10px] tracking-[0.2em] opacity-60 uppercase font-black mb-0.5">Ketinggian Gelombang</p>
+                <div class="flex items-baseline gap-2">
+                  <span id="water-wave-height" class="text-3xl font-black text-yellow-400">--</span>
+                  <span class="text-base font-bold opacity-60 italic">Meter</span>
+                </div>
+                <p id="water-wave-cat" class="mt-0.5 font-black text-xs uppercase tracking-widest text-yellow-500/80 italic">Kategori: --</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabel Rincian Prakiraan -->
+        <div class="glass p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem]">
+          <div class="mb-4">
+            <h4 class="text-lg md:text-xl font-bold">Rincian Prakiraan Perairan</h4>
+            <p class="text-white/40 text-sm">Data prakiraan cuaca, angin, dan gelombang dari BMKG.</p>
+            <p class="text-[10px] text-white/25 mt-1 md:hidden">← geser tabel untuk melihat semua kolom →</p>
+          </div>
+          <div class="overflow-x-auto -mx-2 px-2">
+          <table class="w-full text-left border-collapse min-w-[560px] text-sm">
+            <thead>
+              <tr class="border-b border-white/20 text-cyan-400 text-sm uppercase tracking-widest">
+                <th class="py-4 px-3">Waktu</th>
+                <th class="py-4 px-3">Kondisi Cuaca</th>
+                <th class="py-4 px-3">Arah Angin</th>
+                <th class="py-4 px-3">Kecepatan Angin</th>
+                <th class="py-4 px-3">Tinggi Gelombang</th>
+                <th class="py-4 px-3">Status</th>
+              </tr>
+            </thead>
+            <tbody id="water-table-body" class="text-sm font-medium">
+              <tr><td colspan="6" class="py-6 text-center opacity-50"><i class="fas fa-satellite-dish mr-2"></i>Mengambil data dari satelit BMKG...</td></tr>
+            </tbody>
+          </table>
+          </div><!-- end overflow-x-auto -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PELABUHAN ===== -->
+    <section id="view-ports" class="page-section">
+      <div class="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
+        <div>
+          <h2 class="text-4xl font-black italic tracking-tighter uppercase">KONDISI <span class="text-cyan-400">PELABUHAN</span></h2>
+          <p class="text-white/40 font-medium">Prakiraan cuaca maritim khusus area dermaga Bitung.</p>
+        </div>
+        <!-- Dropdown Pilih Pelabuhan -->
+        <div class="flex flex-col gap-1">
+          <label class="text-[10px] uppercase opacity-60 font-bold tracking-widest">Pilih Pelabuhan</label>
+          <select id="select-pelabuhan" class="select-bmkg" onchange="switchPort(this.value)">
+            <option value="0356_PPS Bitung.json">⚓ PPS Bitung (Pelabuhan Perikanan Samudera)</option>
+            <option value="0465_Likupang.json">⚓ Likupang</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Hero Card Pelabuhan -->
+      <div class="glass rounded-[2.5rem] p-8 md:p-12 mb-8 border-t border-white/20 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent">
+        <div class="absolute top-0 right-0 p-10 opacity-5 text-9xl italic font-black uppercase" id="bg-text">BITUNG</div>
+        <div class="relative z-10">
+          <div class="flex items-center gap-4 mb-10">
+            <div class="w-12 h-12 bg-cyan-500 rounded-2xl flex items-center justify-center text-xl shadow-lg shadow-cyan-500/20">
+              <i class="fas fa-anchor"></i>
+            </div>
+            <div>
+              <h3 class="text-3xl font-black tracking-tight" id="hero-port-name">PPS Bitung</h3>
+              <p class="text-xs font-bold text-white/40 tracking-[0.3em] uppercase" id="pelabuhan-valid-period">Periode Valid: --</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <!-- Baris 1: Cuaca & Suhu | Angin | Gelombang -->
+            <div class="flex items-center gap-4 border-b sm:border-b-0 sm:border-r border-white/10 pb-4 sm:pb-0 sm:pr-4">
+              <i class="fas fa-cloud-sun text-4xl text-yellow-400 flex-shrink-0" id="hero-icon"></i>
+              <div>
+                <p class="text-[10px] font-black text-white/30 uppercase tracking-wider">Cuaca & Suhu</p>
+                <p class="text-xl font-black" id="hero-temp">--°C</p>
+                <p class="text-xs font-bold text-white/40 uppercase" id="hero-desc">--</p>
+                <p class="text-[10px] text-cyan-400 mt-0.5" id="hero-rh">-- % RH</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 border-b sm:border-b-0 sm:border-r border-white/10 pb-4 sm:pb-0 sm:pr-4">
+              <div class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border border-white/10 flex-shrink-0">
+                <i class="fas fa-wind text-xl text-cyan-400"></i>
+              </div>
+              <div>
+                <p class="text-[10px] font-black text-white/30 uppercase tracking-wider">Angin Maks.</p>
+                <p class="text-xl font-black" id="hero-wind">-- kt</p>
+                <p class="text-xs font-bold text-white/40 uppercase" id="hero-wind-label">Kecepatan Angin</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 border-b sm:border-b-0 border-white/10 pb-4 sm:pb-0">
+              <div class="text-center flex-shrink-0">
+                <p class="text-xl font-black" id="hero-wave">--</p>
+                <span id="hero-wave-cat" class="px-2 py-0.5 bg-cyan-500 rounded-full text-[9px] font-black uppercase">--</span>
+              </div>
+              <div>
+                <p class="text-[10px] font-black text-white/30 uppercase tracking-wider">Tinggi Gelombang</p>
+                <p class="text-xs font-bold text-white/40 uppercase mt-1">Kategori di atas</p>
+              </div>
+            </div>
+
+            <!-- Baris 2: Arus | Visibilitas | Kelembaban -->
+            <div class="flex items-center gap-4 sm:border-r border-white/10 sm:pr-4 pt-2 sm:pt-4 border-t border-white/10">
+              <div class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border border-white/10 flex-shrink-0">
+                <i class="fas fa-location-arrow text-xl text-blue-400 -rotate-45"></i>
+              </div>
+              <div>
+                <p class="text-[10px] font-black text-white/30 uppercase tracking-wider">Kecepatan Arus</p>
+                <p class="text-xl font-black" id="hero-current">-- cm/s</p>
+                <p class="text-xs font-bold text-white/40 uppercase" id="hero-current-dir">Arah Arus</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 sm:border-r border-white/10 sm:pr-4 pt-2 sm:pt-4 border-t border-white/10">
+              <div class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border border-white/10 flex-shrink-0">
+                <i class="fas fa-eye text-xl text-green-400"></i>
+              </div>
+              <div>
+                <p class="text-[10px] font-black text-white/30 uppercase tracking-wider">Visibilitas</p>
+                <p class="text-xl font-black" id="hero-vis">-- km</p>
+                <p class="text-xs font-bold text-white/40 uppercase">Jarak Pandang</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 pt-2 sm:pt-4 border-t border-white/10">
+              <div class="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border border-white/10 flex-shrink-0">
+                <i class="fas fa-tint text-xl text-cyan-300"></i>
+              </div>
+              <div>
+                <p class="text-[10px] font-black text-white/30 uppercase tracking-wider">Kelembaban</p>
+                <p class="text-xl font-black" id="hero-humidity">-- %</p>
+                <p class="text-xs font-bold text-white/40 uppercase">Kelembaban Maks.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="font-black tracking-widest text-sm uppercase flex items-center gap-3">
+          <i class="far fa-clock text-cyan-400"></i> Prakiraan Per Shift (12 Jam)
+        </h4>
+      </div>
+
+      <div id="port-forecast-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10"></div>
+
+      <div class="p-6 text-center glass rounded-[2rem] border border-white/5">
+        <p class="text-[10px] font-bold text-white/20 tracking-[0.5em] uppercase">Sumber Data: API Publik BMKG — peta-maritim.bmkg.go.id</p>
+      </div>
+    </section>
+
+    <!-- ===== PANDUAN AMAN ===== -->
+    <section id="view-guide" class="page-section">
+      <!-- Header -->
+      <div class="mb-8">
+        <p class="text-xs tracking-[0.3em] uppercase opacity-60 font-bold mb-1">Edukasi &amp; Panduan Maritim</p>
+        <h2 class="text-2xl md:text-4xl lg:text-5xl font-black uppercase italic tracking-tighter leading-none">PANDUAN AMAN BERLAYAR</h2>
+        <p class="text-white/50 text-sm mt-2">Gunakan simulator di bawah untuk mengetahui apakah kapal Anda aman berlayar pada kondisi cuaca tertentu.</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+        <!-- Kolom Kiri: Slider Simulator -->
+        <div class="lg:col-span-1 flex flex-col gap-6">
+          <div class="glass p-6 rounded-[2rem] border border-white/10 space-y-6">
+            <h3 class="text-lg font-bold text-cyan-400 flex items-center gap-2">
+              <i class="fas fa-sliders-h"></i> Atur Kondisi Laut
+            </h3>
+            
+            <!-- Slider Tinggi Gelombang -->
+            <div class="space-y-2">
+              <div class="flex justify-between text-xs font-bold">
+                <span class="text-white/60">Tinggi Gelombang</span>
+                <span class="text-cyan-400" id="sim-wave-val">1.0 meter</span>
+              </div>
+              <input type="range" id="sim-wave-slider" min="0" max="4.0" step="0.1" value="1.0" oninput="debouncedUpdateSimulator()" 
+                     aria-label="Atur tinggi gelombang simulasi" aria-valuemin="0" aria-valuemax="4.0" aria-valuenow="1.0" aria-valuetext="1.0 meter"
+                     class="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+              <div class="flex justify-between text-[10px] text-white/30 font-bold">
+                <span>0.0m (Tenang)</span>
+                <span>4.0m+ (Sangat Tinggi)</span>
+              </div>
+            </div>
+
+            <!-- Slider Kecepatan Angin -->
+            <div class="space-y-2">
+              <div class="flex justify-between text-xs font-bold">
+                <span class="text-white/60">Kecepatan Angin</span>
+                <span class="text-cyan-400" id="sim-wind-val">10 knot</span>
+              </div>
+              <input type="range" id="sim-wind-slider" min="0" max="30" step="1" value="10" oninput="debouncedUpdateSimulator()" 
+                     aria-label="Atur kecepatan angin simulasi" aria-valuemin="0" aria-valuemax="30" aria-valuenow="10" aria-valuetext="10 knot"
+                     class="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+              <div class="flex justify-between text-[10px] text-white/30 font-bold">
+                <span>0 knot (Tenang)</span>
+                <span>30 knot+ (Badai)</span>
+              </div>
+            </div>
+
+            <!-- Ringkasan Simulator -->
+            <div class="p-4 rounded-2xl bg-white/5 border border-white/5 text-xs text-white/60 leading-relaxed">
+              <i class="fas fa-info-circle text-cyan-400 mr-1"></i> Geser slider untuk mensimulasikan tinggi ombak dan hembusan angin. Lihat perubahan status keamanan kapal di sebelah kanan secara langsung.
+            </div>
+          </div>
+        </div>
+
+        <!-- Kolom Kanan: Visualisasi Animasi & Status Keamanan Kapal -->
+        <div class="lg:col-span-2 flex flex-col gap-6">
+          <!-- Area Animasi Laut (Visualisasi) -->
+          <div class="glass p-6 rounded-[2rem] border border-white/10 relative overflow-hidden h-[220px] flex flex-col justify-between bg-gradient-to-b from-cyan-950/20 to-blue-950/40">
+            <div class="relative z-10 flex justify-between items-start">
+              <span class="text-[10px] font-black tracking-widest text-cyan-400 uppercase">Simulasi Visual Perairan</span>
+              <span id="sim-water-status" class="px-3 py-1 rounded-full text-[9px] font-black uppercase">--</span>
+            </div>
+
+            <!-- Ikon Kapal Animasi -->
+            <div class="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 transition-all duration-300 ease-out" id="sim-ship-container">
+              <svg id="sim-ship-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 60" width="90" height="68" class="filter drop-shadow-[0_6px_10px_rgba(0,0,0,0.6)]">
+                <!-- Tiang layar -->
+                <line x1="40" y1="10" x2="40" y2="38" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round"/>
+                <!-- Layar utama -->
+                <path d="M40 12 L58 34 L40 34 Z" fill="#f0f9ff" opacity="0.92" stroke="#bae6fd" stroke-width="0.8"/>
+                <!-- Layar kecil depan -->
+                <path d="M40 18 L24 32 L40 32 Z" fill="#e0f2fe" opacity="0.85" stroke="#7dd3fc" stroke-width="0.6"/>
+                <!-- Bendera -->
+                <path d="M40 10 L48 13 L40 16 Z" fill="#f97316" stroke="#ea580c" stroke-width="0.5"/>
+                <!-- Badan kapal -->
+                <path d="M16 38 Q18 44 20 46 L60 46 Q62 44 64 38 Z" fill="#1e40af" stroke="#3b82f6" stroke-width="1.2"/>
+                <!-- Dek kapal -->
+                <rect x="20" y="36" width="40" height="4" rx="2" fill="#2563eb" stroke="#60a5fa" stroke-width="0.8"/>
+                <!-- Jendela -->
+                <circle cx="30" cy="42" r="2.5" fill="#93c5fd" opacity="0.9"/>
+                <circle cx="40" cy="42" r="2.5" fill="#93c5fd" opacity="0.9"/>
+                <circle cx="50" cy="42" r="2.5" fill="#93c5fd" opacity="0.9"/>
+                <!-- Lunas kapal -->
+                <path d="M20 46 Q40 52 60 46" fill="#1e3a8a" stroke="#1d4ed8" stroke-width="1"/>
+                <!-- Cerobong asap kecil -->
+                <rect x="36" y="30" width="6" height="8" rx="1" fill="#374151" stroke="#6b7280" stroke-width="0.6"/>
+                <ellipse cx="39" cy="30" rx="3" ry="1.2" fill="#4b5563"/>
+              </svg>
+            </div>
+
+            <!-- Ombak Air Laut Bergoyang -->
+            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none z-10">
+              <svg id="sim-wave-svg" viewBox="0 0 120 28" class="relative block w-full h-[60px]" style="transform: scaleY(1); transition: transform 0.5s ease;">
+                <path d="M0 15 Q 30 0, 60 15 T 120 15 L 120 28 L 0 28 Z" fill="#0ea5e9" opacity="0.45" class="wave-anim-1"></path>
+                <path d="M0 18 Q 30 5, 60 18 T 120 18 L 120 28 L 0 28 Z" fill="#0369a1" class="wave-anim-2"></path>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Status Keamanan Kapal per Kategori -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Kapal Nelayan Kecil -->
+            <div id="sim-card-small" class="glass p-6 rounded-[2rem] border-t-4 flex flex-col justify-between transition-all">
+              <div>
+                <div class="flex justify-between items-start mb-4">
+                  <span class="text-2xl">🛶</span>
+                  <span id="sim-badge-small" class="px-2 py-0.5 rounded text-[8px] font-black uppercase">--</span>
+                </div>
+                <h4 class="font-black text-sm uppercase">Perahu Kecil</h4>
+                <p class="text-[10px] text-white/40 font-bold mb-3 uppercase">Perahu Katinting / Pancing (&lt; 5 GT)</p>
+                <p id="sim-desc-small" class="text-xs text-white/70 leading-relaxed">--</p>
+              </div>
+            </div>
+
+            <!-- Kapal Nelayan Sedang -->
+            <div id="sim-card-medium" class="glass p-6 rounded-[2rem] border-t-4 flex flex-col justify-between transition-all">
+              <div>
+                <div class="flex justify-between items-start mb-4">
+                  <span class="text-2xl">🚢</span>
+                  <span id="sim-badge-medium" class="px-2 py-0.5 rounded text-[8px] font-black uppercase">--</span>
+                </div>
+                <h4 class="font-black text-sm uppercase">Kapal Sedang</h4>
+                <p class="text-[10px] text-white/40 font-bold mb-3 uppercase">Kapal Nelayan / Motor (5 - 30 GT)</p>
+                <p id="sim-desc-medium" class="text-xs text-white/70 leading-relaxed">--</p>
+              </div>
+            </div>
+
+            <!-- Kapal Besar -->
+            <div id="sim-card-large" class="glass p-6 rounded-[2rem] border-t-4 flex flex-col justify-between transition-all">
+              <div>
+                <div class="flex justify-between items-start mb-4">
+                  <span class="text-2xl">🛳️</span>
+                  <span id="sim-badge-large" class="px-2 py-0.5 rounded text-[8px] font-black uppercase">--</span>
+                </div>
+                <h4 class="font-black text-sm uppercase">Kapal Besar</h4>
+                <p class="text-[10px] text-white/40 font-bold mb-3 uppercase">Kapal Ferry / Kargo (&gt; 30 GT)</p>
+                <p id="sim-desc-large" class="text-xs text-white/70 leading-relaxed">--</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kamus Istilah Maritim Sederhana -->
+      <h3 class="text-2xl font-bold mb-6 flex items-center gap-3">
+        <i class="fas fa-book-open text-cyan-400"></i> KAMUS MARITIM SEDERHANA
+      </h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="glass p-6 rounded-3xl border border-white/5">
+          <div class="text-2xl mb-3">🌊</div>
+          <h4 class="font-bold text-sm uppercase text-cyan-400 mb-1">Tinggi Gelombang</h4>
+          <p class="text-xs text-white/60 leading-relaxed">Jarak vertikal dari lembah ombak ke puncak ombak. Di atas 1.25 meter mulai berbahaya bagi perahu pancing nelayan tradisional.</p>
+        </div>
+        <div class="glass p-6 rounded-3xl border border-white/5">
+          <div class="text-2xl mb-3">🌬️</div>
+          <h4 class="font-bold text-sm uppercase text-cyan-400 mb-1">Kecepatan Angin (Knot)</h4>
+          <p class="text-xs text-white/60 leading-relaxed">Satuan kecepatan angin di laut. 1 Knot sama dengan sekitar 1.8 km/jam. Angin di atas 15 knot berpotensi membuat ombak bergulung tinggi.</p>
+        </div>
+        <div class="glass p-6 rounded-3xl border border-white/5">
+          <div class="text-2xl mb-3">🧭</div>
+          <h4 class="font-bold text-sm uppercase text-cyan-400 mb-1">Arah Arus Laut</h4>
+          <p class="text-xs text-white/60 leading-relaxed">Gerakan massa air dari satu tempat ke tempat lain. Ditulis dengan format 'Dari mana ke mana' (contoh: Barat ke Timur), penting agar kapal tidak hanyut.</p>
+        </div>
+        <div class="glass p-6 rounded-3xl border border-white/5">
+          <div class="text-2xl mb-3">👁️</div>
+          <h4 class="font-bold text-sm uppercase text-cyan-400 mb-1">Visibilitas / Jarak Pandang</h4>
+          <p class="text-xs text-white/60 leading-relaxed">Jarak maksimum mata telanjang dapat melihat benda dengan jelas. Jika jarak pandang di bawah 5 km (karena hujan/kabut), nakhoda wajib berhati-hati.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== GRAFIK & DATA ===== -->
+    <section id="view-charts" class="page-section">
+
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+        <div>
+          <p class="text-xs tracking-[0.3em] uppercase opacity-60 font-bold mb-1">Visualisasi & Ekspor Data</p>
+          <h2 class="text-2xl md:text-4xl lg:text-5xl font-black uppercase italic tracking-tighter leading-none">GRAFIK <span class="text-cyan-400">&amp; DATA</span></h2>
+          <p class="text-white/50 text-sm mt-2" id="charts-subtitle">Data prakiraan maritim dari API BMKG — Bitung, Sulawesi Utara.</p>
+        </div>
+        <div class="flex gap-3 items-center flex-wrap">
+          <!-- Pilih Sumber Data -->
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] uppercase opacity-60 font-bold tracking-widest text-white/50">Sumber Data</label>
+            <select id="chart-source-select" class="select-bmkg" onchange="onChartSourceChange()">
+              <option value="pelabuhan">⚓ Data Pelabuhan (PPS Bitung)</option>
+              <option value="perairan">🌊 Data Perairan (Bitung – Likupang)</option>
+            </select>
+          </div>
+          <!-- Pilih Format Tampilan -->
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] uppercase opacity-60 font-bold tracking-widest text-white/50">Format Tampilan</label>
+            <select id="chart-format-select" class="select-bmkg" onchange="onChartFormatChange()">
+              <option value="visual">📊 Grafik Tren Parameter</option>
+              <option value="official">📋 Tabel Prakiraan Resmi BMKG</option>
+            </select>
+          </div>
+          <!-- Tombol Download PDF -->
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] uppercase opacity-60 font-bold tracking-widest text-white/50">Ekspor</label>
+            <button onclick="downloadPDF()" id="btn-download-pdf" class="flex items-center gap-2 bg-red-600 hover:bg-red-500 active:scale-95 px-5 py-[0.6rem] rounded-xl font-black text-sm transition-all shadow-lg shadow-red-900/30">
+              <i class="fas fa-file-pdf"></i> Download PDF
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info Banner untuk Perairan -->
+      <div id="charts-info-banner" class="hidden glass-bmkg p-5 rounded-2xl border-l-4 border-cyan-500 mb-8 flex items-start gap-4">
+        <i class="fas fa-info-circle text-cyan-400 text-2xl mt-0.5 flex-shrink-0"></i>
+        <div>
+          <h4 class="font-bold text-sm text-cyan-400 mb-1.5">Informasi Data Perairan Laut Lepas</h4>
+          <p class="text-xs text-white/70 leading-relaxed">
+            Data untuk zona perairan laut lepas hanya mencakup: <strong class="text-white">Tinggi Gelombang, Kecepatan Angin, dan Kondisi Cuaca</strong>. 
+            Parameter seperti Suhu Udara, Kelembapan, Kecepatan Arus, dan Visibilitas hanya tersedia untuk area pelabuhan/dermaga.
+          </p>
+        </div>
+      </div>
+
+      <!-- Stat Summary Cards -->
+      <div id="charts-stat-cards" class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12"></div>
+
+      <!-- Area Konten (Dapat dicetak) -->
+      <div id="charts-printable-area" class="max-w-full">
+        
+        <!-- Header Print (Hanya muncul saat PDF) -->
+        <div class="print-only" style="display:none;">
+          <div style="border-bottom:3px solid #0284c7;padding-bottom:1rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem;">
+            <div style="width:60px;height:60px;background:#0284c7;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;">⚓</div>
+            <div style="flex-grow:1;">
+              <p style="font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:#64748b;margin:0;">Badan Meteorologi, Klimatologi, dan Geofisika</p>
+              <h1 style="font-size:22px;font-weight:900;margin:4px 0;color:#0c4a6e;">GRAFIK & DATA PRAKIRAAN MARITIM</h1>
+              <p style="font-size:13px;color:#0284c7;font-weight:700;margin:0;">SIMAR Bitung — Sistem Informasi Maritim Kota Bitung</p>
+            </div>
+            <div style="text-align:right;">
+              <p style="font-size:10px;color:#94a3b8;margin:0;">Dicetak pada</p>
+              <p id="print-timestamp" style="font-size:11px;font-weight:700;color:#334155;margin:0;"></p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 1. Tampilan Visual (Grafik Tren Parameter) -->
+        <div id="charts-visual-area" class="space-y-6">
+          
+          <!-- Kartu Prakiraan Waktu — Grid Simetris, tiap card berisi semua info -->
+          <div id="forecast-period-cards" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <!-- Di-render dinamis via JS -->
+          </div>
+
+          <!-- Tombol Pill Navigasi Parameter (Meniru Tab BMKG) -->
+          <div class="flex flex-wrap gap-3 pt-4">
+            <button onclick="if(!this.disabled) switchChartParameter('wave')" id="pill-param-wave" class="pill-param-btn bg-cyan-500 border-2 border-cyan-400/50 text-white shadow-lg shadow-cyan-500/20 px-6 py-3.5 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95">🌊 Tinggi Gelombang</button>
+            <button onclick="if(!this.disabled) switchChartParameter('temp')" id="pill-param-temp" class="pill-param-btn bg-white/5 border-2 border-white/10 hover:bg-white/10 text-white/60 hover:text-white px-6 py-3.5 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95">🌡️ Suhu & Kelembapan</button>
+            <button onclick="if(!this.disabled) switchChartParameter('current')" id="pill-param-current" class="pill-param-btn bg-white/5 border-2 border-white/10 hover:bg-white/10 text-white/60 hover:text-white px-6 py-3.5 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95">🧭 Arus/Swell</button>
+            <button onclick="if(!this.disabled) switchChartParameter('wind')" id="pill-param-wind" class="pill-param-btn bg-white/5 border-2 border-white/10 hover:bg-white/10 text-white/60 hover:text-white px-6 py-3.5 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95">🌬️ Kecepatan Angin</button>
+          </div>
+
+          <!-- Area Grafik Utama -->
+          <div class="glass p-8 rounded-[2.5rem] border border-white/10 relative overflow-hidden bg-gradient-to-br from-white/5 to-transparent shadow-2xl">
+            <div class="absolute top-6 right-6 flex gap-2 opacity-40 hover:opacity-100 transition-opacity z-10">
+              <span class="text-[10px] uppercase tracking-widest font-black text-white/60">Interactive Chart</span>
+              <i class="fas fa-chart-line text-cyan-400 text-sm"></i>
+            </div>
+            <div class="h-[500px] relative">
+              <canvas id="chart-bmkg-main"></canvas>
+            </div>
+            <div class="mt-6 pt-5 border-t border-white/5 flex justify-between items-center text-xs text-white/50">
+              <span class="flex items-center gap-2"><i class="fas fa-mouse-pointer text-cyan-400"></i> Hover untuk detail data lengkap</span>
+              <span id="chart-data-points" class="font-bold text-cyan-400"></span>
+            </div>
+          </div>
+
+          <!-- Tabel Data Tren Parameter Terintegrasi -->
+          <div class="glass p-6 rounded-[2rem] border border-white/10 overflow-hidden">
+            <h4 class="font-black text-sm uppercase tracking-wider mb-4 text-cyan-400 flex items-center gap-2">
+              <i class="fas fa-table text-xs"></i> Tabel Data Tren Prakiraan
+            </h4>
+            <div class="overflow-x-auto w-full rounded-2xl border border-white/5 bg-white/5">
+              <table class="w-full text-center text-xs text-white/80 border-collapse" id="table-visual-trend">
+                <!-- Di-render dinamis via JS -->
+              </table>
+            </div>
+          </div>
+
+          <!-- Catatan Sumber Data -->
+          <div class="mt-6 p-5 glass rounded-[1.5rem] border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div class="flex items-center gap-3 text-xs text-white/40 font-bold">
+              <i class="fas fa-satellite-dish text-cyan-400 text-base"></i>
+              <span>Sumber: <span class="text-white/60">API Publik BMKG — peta-maritim.bmkg.go.id</span></span>
+            </div>
+            <div class="text-xs text-white/30 font-bold" id="charts-last-update">Diperbarui: --</div>
+          </div>
+        </div>
+
+        <!-- 2. Tampilan Dokumen Prakiraan Resmi BMKG (Latar Belakang Putih) -->
+        <div id="charts-official-area" class="hidden w-full bg-white text-black p-8 rounded-[2rem] shadow-2xl border border-gray-200" style="color: #000; background-color: #fff; font-family: Arial, sans-serif;">
+          <!-- Di-render dinamis via JS -->
+        </div>
+
+      </div><!-- end printable area -->
+
+    </section><!-- end view-charts -->
+
+    <!-- ===== RIWAYAT DATA & TREND ===== -->
+    <section id="view-history" class="page-section" aria-label="Riwayat Data dan Trend">
+
+      <!-- Header -->
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+        <div>
+          <p class="text-xs tracking-[0.3em] uppercase opacity-60 font-bold mb-1">Rekam Jejak Data BMKG</p>
+          <h2 class="text-2xl md:text-4xl lg:text-5xl font-black uppercase italic tracking-tighter leading-none">RIWAYAT <span class="text-cyan-400">TREND</span></h2>
+          <p class="text-white/50 text-sm mt-2">Tren gelombang, angin, dan suhu berdasarkan data tersimpan.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span id="history-data-status" class="text-xs font-bold text-white/40">Memuat...</span>
+          <button onclick="downloadHistoryExcel()"
+                  id="btn-download-history-excel"
+                  class="flex items-center gap-2 bg-green-700 hover:bg-green-600 active:scale-95 px-4 py-2 rounded-xl font-black text-sm transition-all shadow-lg shadow-green-900/30">
+            <i class="fas fa-file-excel"></i> Download Excel
+          </button>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="glass p-5 rounded-[2rem] border border-white/10 mb-8">
+        <div class="flex flex-wrap gap-4 items-end">
+
+          <!-- Lokasi -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10px] uppercase opacity-60 font-black tracking-widest">Lokasi</label>
+            <select id="history-location" class="select-bmkg" onchange="loadHistoryData()">
+              <option value="pelabuhan">⚓ PPS Bitung (Pelabuhan)</option>
+              <option value="perairan">🌊 Perairan Bitung – Likupang</option>
+            </select>
+          </div>
+
+          <!-- Parameter -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10px] uppercase opacity-60 font-black tracking-widest">Parameter</label>
+            <select id="history-parameter" class="select-bmkg" onchange="loadHistoryData()">
+              <option value="wave">🌊 Tinggi Gelombang</option>
+              <option value="wind">💨 Kecepatan Angin</option>
+              <option value="temp">🌡️ Suhu Udara</option>
+            </select>
+          </div>
+
+          <!-- Klasifikasi -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10px] uppercase opacity-60 font-black tracking-widest">Klasifikasi</label>
+            <div class="flex gap-2">
+              <button id="history-klasifikasi-hari"
+                onclick="setKlasifikasi('hari')"
+                class="history-klasifikasi-btn px-5 py-2.5 rounded-full text-sm font-black bg-cyan-500 text-white border-2 border-cyan-400/50 shadow-lg shadow-cyan-500/20 transition-all">
+                Harian
+              </button>
+              <button id="history-klasifikasi-minggu"
+                onclick="setKlasifikasi('minggu')"
+                class="history-klasifikasi-btn px-5 py-2.5 rounded-full text-sm font-bold bg-white/5 text-white/60 hover:text-white border-2 border-white/10 hover:bg-white/10 transition-all">
+                Mingguan
+              </button>
+              <button id="history-klasifikasi-bulan"
+                onclick="setKlasifikasi('bulan')"
+                class="history-klasifikasi-btn px-5 py-2.5 rounded-full text-sm font-bold bg-white/5 text-white/60 hover:text-white border-2 border-white/10 hover:bg-white/10 transition-all">
+                Bulanan
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div id="history-summary" class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8"></div>
+
+      <!-- Chart -->
+      <div id="history-chart-wrap" class="glass p-8 rounded-[2.5rem] border border-white/10 mb-8 hidden">
+        <!-- Banner demo — muncul saat data nyata belum tersedia -->
+        <div id="history-demo-banner" class="hidden mb-5 bg-yellow-500/10 border border-yellow-500/30 rounded-2xl px-5 py-3 flex items-center gap-3">
+          <i class="fas fa-flask text-yellow-400"></i>
+          <div>
+            <p class="text-xs font-black text-yellow-400 uppercase tracking-wider">Data Contoh</p>
+            <p class="text-[11px] text-white/50">Grafik ini menampilkan data perkiraan berdasarkan pola iklim laut Bitung. Data nyata akan muncul otomatis setelah beberapa hari penggunaan.</p>
+          </div>
+        </div>
+        <div class="flex items-center justify-between mb-6">
+          <h3 id="history-chart-title" class="text-lg font-black uppercase tracking-wider text-white">Tren Data</h3>
+          <span class="text-[10px] uppercase opacity-40 font-black tracking-widest">Rata-rata per periode</span>
+        </div>
+        <div class="h-[380px] relative">
+          <canvas id="history-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Tabel Data -->
+      <div id="history-table-wrap" class="glass p-6 rounded-[2rem] border border-white/10 hidden">
+        <h4 class="font-black text-sm uppercase tracking-wider mb-4 text-cyan-400 flex items-center gap-2">
+          <i class="fas fa-table text-xs"></i> Data per Periode
+        </h4>
+
+        <div class="overflow-x-auto rounded-2xl border border-white/5">
+          <table class="w-full text-sm text-white/80 border-collapse">
+            <thead id="history-table-head" class="bg-white/5">
+              <tr>
+                <th class="p-3 text-left font-black text-[10px] uppercase text-cyan-400 border-b border-white/10">Periode</th>
+                <th class="p-3 text-left font-black text-[10px] uppercase text-cyan-400 border-b border-white/10">Gelombang (m)</th>
+                <th class="p-3 text-left font-black text-[10px] uppercase text-cyan-400 border-b border-white/10">Angin (kt)</th>
+                <th class="p-3 text-left font-black text-[10px] uppercase text-cyan-400 border-b border-white/10">Suhu (°C)</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body"></tbody>
+          </table>
+        </div>
+
+        <!-- Legenda Klasifikasi Warna -->
+        <div class="mt-5 pt-4 border-t border-white/5">
+          <p class="text-[9px] font-black uppercase tracking-[0.2em] text-white/25 mb-3">Keterangan Warna</p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-0 rounded-2xl overflow-hidden border border-white/5 text-[10px]">
+
+            <!-- Gelombang -->
+            <div class="bg-white/[0.02] p-4 border-r border-white/5">
+              <p class="font-black uppercase tracking-wider text-white/40 mb-2 flex items-center gap-1.5"><i class="fas fa-water text-cyan-400 text-[9px]"></i> Gelombang</p>
+              <div class="space-y-0">
+                <div class="flex items-center gap-2 py-1 border-b border-white/[0.04]">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-green-400 flex-shrink-0"></span>
+                  <span class="text-white/70">Tenang</span>
+                  <span class="text-white/35 font-bold ml-1">≤ 0.5 m</span>
+                </div>
+                <div class="flex items-center gap-2 py-1 border-b border-white/[0.04]">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-cyan-400 flex-shrink-0"></span>
+                  <span class="text-white/70">Rendah</span>
+                  <span class="text-white/35 font-bold ml-1">≤ 1.25 m</span>
+                </div>
+                <div class="flex items-center gap-2 py-1 border-b border-white/[0.04]">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-yellow-400 flex-shrink-0"></span>
+                  <span class="text-white/70">Sedang</span>
+                  <span class="text-white/35 font-bold ml-1">≤ 2.5 m</span>
+                </div>
+                <div class="flex items-center gap-2 py-1 border-b border-white/[0.04]">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-red-400 flex-shrink-0"></span>
+                  <span class="text-white/70">Tinggi</span>
+                  <span class="text-white/35 font-bold ml-1">≤ 4.0 m</span>
+                </div>
+                <div class="flex items-center gap-2 py-1">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-red-600 flex-shrink-0"></span>
+                  <span class="text-white/70">Ekstrem</span>
+                  <span class="text-white/35 font-bold ml-1">&gt; 4.0 m</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Angin -->
+            <div class="bg-white/[0.02] p-4 border-r border-white/5">
+              <p class="font-black uppercase tracking-wider text-white/40 mb-2 flex items-center gap-1.5"><i class="fas fa-wind text-orange-400 text-[9px]"></i> Angin</p>
+              <div class="space-y-0">
+                <div class="flex items-center gap-2 py-1 border-b border-white/[0.04]">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-green-400 flex-shrink-0"></span>
+                  <span class="text-white/70">Normal</span>
+                  <span class="text-white/35 font-bold ml-1">≤ 10 kt</span>
+                </div>
+                <div class="flex items-center gap-2 py-1 border-b border-white/[0.04]">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-yellow-400 flex-shrink-0"></span>
+                  <span class="text-white/70">Sedang</span>
+                  <span class="text-white/35 font-bold ml-1">≤ 15 kt</span>
+                </div>
+                <div class="flex items-center gap-2 py-1 border-b border-white/[0.04]">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-orange-400 flex-shrink-0"></span>
+                  <span class="text-white/70">Kencang</span>
+                  <span class="text-white/35 font-bold ml-1">≤ 20 kt</span>
+                </div>
+                <div class="flex items-center gap-2 py-1">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-red-400 flex-shrink-0"></span>
+                  <span class="text-white/70">Badai</span>
+                  <span class="text-white/35 font-bold ml-1">&gt; 20 kt</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Suhu -->
+            <div class="bg-white/[0.02] p-4">
+              <p class="font-black uppercase tracking-wider text-white/40 mb-2 flex items-center gap-1.5"><i class="fas fa-thermometer-half text-red-400 text-[9px]"></i> Suhu</p>
+              <div class="space-y-0">
+                <div class="flex items-center gap-2 py-1 border-b border-white/[0.04]">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-blue-400 flex-shrink-0"></span>
+                  <span class="text-white/70">Dingin</span>
+                  <span class="text-white/35 font-bold ml-1">&lt; 25°C</span>
+                </div>
+                <div class="flex items-center gap-2 py-1 border-b border-white/[0.04]">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-green-400 flex-shrink-0"></span>
+                  <span class="text-white/70">Normal</span>
+                  <span class="text-white/35 font-bold ml-1">25–31°C</span>
+                </div>
+                <div class="flex items-center gap-2 py-1 border-b border-white/[0.04]">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-orange-400 flex-shrink-0"></span>
+                  <span class="text-white/70">Hangat</span>
+                  <span class="text-white/35 font-bold ml-1">31–33°C</span>
+                </div>
+                <div class="flex items-center gap-2 py-1">
+                  <span class="w-2.5 h-2.5 rounded-sm bg-red-400 flex-shrink-0"></span>
+                  <span class="text-white/70">Panas</span>
+                  <span class="text-white/35 font-bold ml-1">&gt; 33°C</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </section><!-- end view-history -->
+
+  </main>
+
+  <!-- ============================================================
+       FOOTER
+  ============================================================ -->
+  <footer class="mt-auto py-10 glass-nav text-center">
+    <p class="text-[10px] tracking-[0.5em] text-white/20 uppercase font-black">Bian M. Wilar © 2026</p>
+  </footer>
+
+  <!-- ============================================================
+       JAVASCRIPT
+  ============================================================ -->
+
+  <!-- Entry point: Vite akan bundle js/app.js beserta semua dependencies -->
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
