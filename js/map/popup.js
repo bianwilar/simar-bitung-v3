@@ -43,7 +43,7 @@ export function buildKelurahanWeatherPopup(lat, lng, kelurahan, weatherData) {
   }
 
   return `
-    <div style="min-width:220px;max-width:min(260px,calc(100vw - 48px));padding:4px 0;font-family:'Segoe UI',sans-serif;box-sizing:border-box;overflow:hidden;">
+    <div style="padding:4px 0;font-family:'Segoe UI',sans-serif;">
       <div style="border-bottom:1.5px solid rgba(34,211,238,0.2);padding-bottom:7px;margin-bottom:7px;">
         <p style="font-size:0.55rem;letter-spacing:0.1em;opacity:0.4;text-transform:uppercase;margin:0 0 2px 0;">📍 Cuaca Daratan</p>
         <h3 style="font-size:0.9rem;font-weight:900;line-height:1.2;margin:0 0 2px 0;">${sanitizeHTML(kelurahan.name)}</h3>

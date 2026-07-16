@@ -287,7 +287,7 @@ export function initMap() {
 
       darkMapLayer.addTo(map);
 
-const _popupWidth = () => Math.min(220, window.innerWidth - 32);
+const _popupWidth = () => window.innerWidth <= 480 ? Math.min(220, window.innerWidth - 40) : 280;
       const getPelData = () => stateData.pelabuhan ? stateData.pelabuhan.data[0] : null;
       const getPerData = (keyword) => {
         if (!stateData.perairan) return null;
@@ -367,7 +367,7 @@ const _popupWidth = () => Math.min(220, window.innerWidth - 32);
         const m = L.marker(p.coords, { icon: makeSvgIcon('#22d3ee', '⚓', CONFIG.MAP.MARKER_SIZES.PORT, true) })
           .addTo(map)
           .bindPopup(() => buildRichMarinePopup(p.nama, p.subtitle, 'pelabuhan', getPelData()),
-          { maxWidth: _popupWidth(), className: 'bmkg-popup' });
+          { maxWidth: 280, className: 'bmkg-popup' });
 
         m.on('click', () => {
           showPointDetails('pelabuhan', p);
