@@ -42,6 +42,29 @@ export function buildKelurahanWeatherPopup(lat, lng, kelurahan, weatherData) {
       </div>`;
   }
 
+  // Versi ringkas khusus smartphone (≤480px)
+  if (window.innerWidth <= 480) {
+    return `
+      <div style="padding:5px 2px;font-family:'Segoe UI',sans-serif;">
+        <p style="font-size:0.55rem;opacity:0.4;text-transform:uppercase;margin:0 0 2px;">📍 ${sanitizeHTML(kelurahan.name)}</p>
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">
+          <span style="font-size:1.2rem;">${getWeatherEmoji(currentWeather.weather_desc)}</span>
+          <span style="font-size:0.65rem;font-weight:700;line-height:1.2;">${sanitizeHTML(currentWeather.weather_desc || '-')}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">
+          <div style="background:rgba(255,255,255,0.06);border-radius:5px;padding:3px 5px;">
+            <p style="font-size:0.5rem;opacity:0.4;margin:0;">Suhu</p>
+            <p style="font-size:0.7rem;font-weight:900;margin:0;color:#f87171;">${safeNum(currentWeather.t)}°C</p>
+          </div>
+          <div style="background:rgba(255,255,255,0.06);border-radius:5px;padding:3px 5px;">
+            <p style="font-size:0.5rem;opacity:0.4;margin:0;">Angin</p>
+            <p style="font-size:0.7rem;font-weight:900;margin:0;color:#22d3ee;">${safeNum(currentWeather.ws)} km/j</p>
+          </div>
+        </div>
+        <p style="font-size:0.5rem;opacity:0.3;margin:4px 0 0;text-align:center;">↙ detail di kartu info</p>
+      </div>`;
+  }
+
   return `
     <div style="padding:4px 0;font-family:'Segoe UI',sans-serif;">
       <div style="border-bottom:1.5px solid rgba(34,211,238,0.2);padding-bottom:7px;margin-bottom:7px;">
