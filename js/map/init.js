@@ -213,6 +213,33 @@ function buildRichMarinePopup(title, subtitle, type, weatherData, sourceName) {
       const waveColor = weatherData ? getWaveColor(weatherData.wave_cat) : '#22d3ee';
 
       let dataHtml = '';
+
+      // Versi ringkas khusus smartphone (≤480px)
+      if (window.innerWidth <= 480) {
+        const emoji = getWeatherIcon(weatherData?.weather || '');
+        const waveColor2 = weatherData ? getWaveColor(weatherData.wave_cat) : '#22d3ee';
+        return `<div style="padding:5px 2px;font-family:'Segoe UI',sans-serif;">
+          <p style="font-size:0.55rem;opacity:0.4;text-transform:uppercase;margin:0 0 2px;">${sanitizeHTML(subtitle)}</p>
+          <h4 style="font-size:0.8rem;font-weight:900;margin:0 0 5px;line-height:1.2;">${sanitizeHTML(title)}</h4>
+          ${weatherData ? `
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;">
+            <span style="font-size:1.2rem;">${emoji}</span>
+            <span style="font-size:0.65rem;font-weight:700;">${sanitizeHTML(weatherData.weather || '-')}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">
+            <div style="background:rgba(255,255,255,0.06);border-radius:5px;padding:3px 5px;">
+              <p style="font-size:0.5rem;opacity:0.4;margin:0;">🌊 Gelombang</p>
+              <p style="font-size:0.7rem;font-weight:900;margin:0;color:${waveColor2};">${sanitizeHTML(weatherData.wave_desc || '—')}</p>
+            </div>
+            <div style="background:rgba(255,255,255,0.06);border-radius:5px;padding:3px 5px;">
+              <p style="font-size:0.5rem;opacity:0.4;margin:0;">💨 Angin</p>
+              <p style="font-size:0.7rem;font-weight:900;margin:0;color:#22d3ee;">${weatherData.wind_speed_max || '—'} kt</p>
+            </div>
+          </div>` : '<p style="font-size:0.65rem;opacity:0.4;text-align:center;margin:5px 0;">Data belum tersedia</p>'}
+          <p style="font-size:0.5rem;opacity:0.3;margin:4px 0 0;text-align:center;">↙ detail di kartu info</p>
+        </div>`;
+      }
+
       if (weatherData) {
         const weatherEmoji = getWeatherIcon(weatherData.weather);
         dataHtml = `
