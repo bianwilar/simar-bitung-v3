@@ -42,8 +42,9 @@ export function buildKelurahanWeatherPopup(lat, lng, kelurahan, weatherData) {
       </div>`;
   }
 
-  // Versi ringkas khusus smartphone (≤480px)
-  if (window.innerWidth <= 480) {
+  // Versi ringkas khusus smartphone
+  const isMobileDevice = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  if (isMobileDevice) {
     return `
       <div style="padding:5px 2px;font-family:'Segoe UI',sans-serif;">
         <p style="font-size:0.55rem;opacity:0.4;text-transform:uppercase;margin:0 0 2px;">📍 ${sanitizeHTML(kelurahan.name)}</p>

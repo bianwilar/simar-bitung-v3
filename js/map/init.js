@@ -214,8 +214,9 @@ function buildRichMarinePopup(title, subtitle, type, weatherData, sourceName) {
 
       let dataHtml = '';
 
-      // Versi ringkas khusus smartphone (≤480px)
-      if (window.innerWidth <= 480) {
+      // Versi ringkas khusus smartphone
+      const isMobileDevice = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      if (isMobileDevice) {
         const emoji = getWeatherIcon(weatherData?.weather || '');
         const waveColor2 = weatherData ? getWaveColor(weatherData.wave_cat) : '#22d3ee';
         return `<div style="padding:5px 2px;font-family:'Segoe UI',sans-serif;">
@@ -556,7 +557,7 @@ const _popupWidth = () => window.innerWidth <= 480 ? Math.min(220, window.innerW
         
         // ALWAYS fetch weather data (no distance limit!)
         // Show loading popup first
-        const isMobile = window.innerWidth <= 480;
+        const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
         L.popup({ maxWidth: isMobile ? 180 : 350, className: 'bmkg-popup' })
           .setLatLng(e.latlng)
           .setContent(isMobile ? `
