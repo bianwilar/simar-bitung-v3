@@ -556,16 +556,21 @@ const _popupWidth = () => window.innerWidth <= 480 ? Math.min(220, window.innerW
         
         // ALWAYS fetch weather data (no distance limit!)
         // Show loading popup first
-        L.popup({ maxWidth: 350, className: 'bmkg-popup' })
+        const isMobile = window.innerWidth <= 480;
+        L.popup({ maxWidth: isMobile ? 180 : 350, className: 'bmkg-popup' })
           .setLatLng(e.latlng)
-          .setContent(`
+          .setContent(isMobile ? `
+            <div style="text-align:center;padding:10px;">
+              <i class="fas fa-satellite-dish animate-pulse text-cyan-400"></i>
+              <p style="font-size:0.7rem;font-weight:bold;margin:4px 0 2px;">${sanitizeHTML(nearest.name)}</p>
+              <p style="font-size:0.6rem;opacity:0.5;">Memuat...</p>
+            </div>` : `
             <div style="text-align:center;padding:20px;">
               <i class="fas fa-satellite-dish fa-3x mb-3 animate-pulse text-cyan-400"></i>
               <p style="font-size:0.85rem;font-weight:bold;margin-bottom:5px;">Mengambil Data Cuaca...</p>
               <p style="font-size:0.75rem;color:#22d3ee;">${sanitizeHTML(nearest.name)}</p>
               <p style="font-size:0.7rem;opacity:0.5;margin-top:3px;">Kec. ${sanitizeHTML(nearest.kecamatan)}</p>
-            </div>
-          `)
+            </div>`)
           .openOn(map);
         
         try {
