@@ -151,12 +151,6 @@ body {
     width: auto !important;
   }
 }
-  .bmkg-popup .leaflet-popup-content {
-    margin: 8px 10px;
-    font-size: 10px;
-    width: auto !important;
-  }
-}
 
 /* Select BMKG */
 .select-bmkg {
