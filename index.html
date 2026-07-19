@@ -477,6 +477,96 @@
         <!-- Peta (2/3 width) -->
         <div class="lg:col-span-2 glass p-3 rounded-[2.5rem] relative order-1 lg:order-2">
           <div id="map"></div>
+
+          <!-- Kompas 8 Arah -->
+          <div id="map-compass" style="position:absolute;top:1rem;right:1rem;z-index:1000;width:90px;height:90px;pointer-events:none;">
+            <svg viewBox="0 0 100 100" width="90" height="90" style="filter:drop-shadow(0 4px 12px rgba(0,0,0,0.6));">
+              <!-- Lingkaran luar -->
+              <circle cx="50" cy="50" r="46" fill="rgba(8,22,45,0.92)" stroke="rgba(34,211,238,0.5)" stroke-width="1.5"/>
+              <!-- Lingkaran dalam -->
+              <circle cx="50" cy="50" r="6" fill="#22d3ee"/>
+              <!-- Jarum N (merah) -->
+              <polygon points="50,8 46,50 50,45 54,50" fill="#ef4444"/>
+              <!-- Jarum S (putih) -->
+              <polygon points="50,92 46,50 50,55 54,50" fill="rgba(255,255,255,0.7)"/>
+              <!-- Jarum E (putih) -->
+              <polygon points="92,50 50,46 55,50 50,54" fill="rgba(255,255,255,0.5)"/>
+              <!-- Jarum W (putih) -->
+              <polygon points="8,50 50,46 45,50 50,54" fill="rgba(255,255,255,0.5)"/>
+              <!-- Titik diagonal NE NW SE SW -->
+              <circle cx="71" cy="29" r="2.5" fill="rgba(255,255,255,0.4)"/>
+              <circle cx="29" cy="29" r="2.5" fill="rgba(255,255,255,0.4)"/>
+              <circle cx="71" cy="71" r="2.5" fill="rgba(255,255,255,0.4)"/>
+              <circle cx="29" cy="71" r="2.5" fill="rgba(255,255,255,0.4)"/>
+              <!-- Label N -->
+              <text x="50" y="6" text-anchor="middle" font-size="9" font-weight="900" fill="#ef4444" font-family="Arial">N</text>
+              <!-- Label S -->
+              <text x="50" y="99" text-anchor="middle" font-size="9" font-weight="900" fill="rgba(255,255,255,0.8)" font-family="Arial">S</text>
+              <!-- Label E -->
+              <text x="98" y="53" text-anchor="middle" font-size="9" font-weight="900" fill="rgba(255,255,255,0.8)" font-family="Arial">E</text>
+              <!-- Label W -->
+              <text x="2" y="53" text-anchor="middle" font-size="9" font-weight="900" fill="rgba(255,255,255,0.8)" font-family="Arial">W</text>
+              <!-- Label NE -->
+              <text x="79" y="24" text-anchor="middle" font-size="7" font-weight="700" fill="rgba(255,255,255,0.55)" font-family="Arial">NE</text>
+              <!-- Label NW -->
+              <text x="21" y="24" text-anchor="middle" font-size="7" font-weight="700" fill="rgba(255,255,255,0.55)" font-family="Arial">NW</text>
+              <!-- Label SE -->
+              <text x="79" y="80" text-anchor="middle" font-size="7" font-weight="700" fill="rgba(255,255,255,0.55)" font-family="Arial">SE</text>
+              <!-- Label SW -->
+              <text x="21" y="80" text-anchor="middle" font-size="7" font-weight="700" fill="rgba(255,255,255,0.55)" font-family="Arial">SW</text>
+            </svg>
+          </div>
+
+          <!-- Legenda Kompas (toggle) -->
+          <div id="compass-legend-btn"
+               style="position:absolute;top:6.5rem;right:1rem;z-index:1000;cursor:pointer;"
+               onclick="document.getElementById('compass-legend').classList.toggle('hidden')">
+            <div style="background:rgba(8,22,45,0.92);border:1px solid rgba(34,211,238,0.4);border-radius:8px;padding:3px 8px;font-size:9px;font-weight:900;color:#22d3ee;letter-spacing:0.05em;">
+              ? ARAH
+            </div>
+          </div>
+
+          <!-- Panel Legenda Arah -->
+          <div id="compass-legend"
+               class="hidden"
+               style="position:absolute;top:9rem;right:1rem;z-index:1000;background:rgba(8,22,45,0.97);border:1px solid rgba(34,211,238,0.3);border-radius:14px;padding:10px 12px;min-width:200px;font-family:'Segoe UI',sans-serif;">
+            <p style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:0.12em;color:#22d3ee;margin:0 0 8px;">🧭 Mata Angin / Cardinal Directions</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+              <div style="padding:4px 6px;background:rgba(255,255,255,0.04);border-radius:6px;">
+                <p style="font-size:10px;font-weight:900;color:#ef4444;margin:0;">N – North</p>
+                <p style="font-size:9px;color:rgba(255,255,255,0.5);margin:0;">Utara</p>
+              </div>
+              <div style="padding:4px 6px;background:rgba(255,255,255,0.04);border-radius:6px;">
+                <p style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.85);margin:0;">S – South</p>
+                <p style="font-size:9px;color:rgba(255,255,255,0.5);margin:0;">Selatan</p>
+              </div>
+              <div style="padding:4px 6px;background:rgba(255,255,255,0.04);border-radius:6px;">
+                <p style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.85);margin:0;">E – East</p>
+                <p style="font-size:9px;color:rgba(255,255,255,0.5);margin:0;">Timur</p>
+              </div>
+              <div style="padding:4px 6px;background:rgba(255,255,255,0.04);border-radius:6px;">
+                <p style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.85);margin:0;">W – West</p>
+                <p style="font-size:9px;color:rgba(255,255,255,0.5);margin:0;">Barat</p>
+              </div>
+              <div style="padding:4px 6px;background:rgba(255,255,255,0.04);border-radius:6px;">
+                <p style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.85);margin:0;">NE – Northeast</p>
+                <p style="font-size:9px;color:rgba(255,255,255,0.5);margin:0;">Timur Laut</p>
+              </div>
+              <div style="padding:4px 6px;background:rgba(255,255,255,0.04);border-radius:6px;">
+                <p style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.85);margin:0;">NW – Northwest</p>
+                <p style="font-size:9px;color:rgba(255,255,255,0.5);margin:0;">Barat Laut</p>
+              </div>
+              <div style="padding:4px 6px;background:rgba(255,255,255,0.04);border-radius:6px;">
+                <p style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.85);margin:0;">SE – Southeast</p>
+                <p style="font-size:9px;color:rgba(255,255,255,0.5);margin:0;">Tenggara</p>
+              </div>
+              <div style="padding:4px 6px;background:rgba(255,255,255,0.04);border-radius:6px;">
+                <p style="font-size:10px;font-weight:900;color:rgba(255,255,255,0.85);margin:0;">SW – Southwest</p>
+                <p style="font-size:9px;color:rgba(255,255,255,0.5);margin:0;">Barat Daya</p>
+              </div>
+            </div>
+            <p style="font-size:8px;color:rgba(255,255,255,0.25);margin:6px 0 0;text-align:center;">Klik tombol untuk tutup / Click to close</p>
+          </div>
         </div>
       </div>
     </section>
