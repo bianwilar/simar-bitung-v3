@@ -248,7 +248,34 @@ function updateLastUpdateTime() {
   const el = document.getElementById('lastUpdate');
   if (!el) return;
   const now = new Date();
-  el.innerText = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ' WITA';
+  // Selalu tampilkan dalam WITA (Asia/Makassar = UTC+8)
+  const witaTime = now.toLocaleString('id-ID', {
+    timeZone: 'Asia/Makassar',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  el.innerText = witaTime + ' WITA';
+
+  // Deteksi zona waktu device dan tampilkan konversi jika berbeda dari WITA
+  const deviceTZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const deviceOffset = -now.getTimezoneOffset(); // dalam menit
+  const witaOffset = 8 * 60; // WITA = UTC+8 = 480 menit
+
+  const deviceTimeEl = document.getElementById('lastUpdateDeviceTime');
+  if (deviceTimeEl) {
+    if (deviceOffset !== witaOffset) {
+      // Device berada di zona waktu berbeda — tampilkan waktu lokal device juga
+      const localTime = now.toLocaleString('id-ID', {
+        hour: '2-digit', minute: '2-digit', hour12: false
+      });
+      const tzName = deviceTZ.split('/').pop().replace('_', ' ');
+      deviceTimeEl.innerText = `${localTime} (${tzName})`;
+      deviceTimeEl.classList.remove('hidden');
+    } else {
+      deviceTimeEl.classList.add('hidden');
+    }
+  }
 }
 
 function updateFreshnessIndicator() {
