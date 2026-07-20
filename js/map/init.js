@@ -315,6 +315,25 @@ export function initMap() {
 
       darkMapLayer.addTo(map);
 
+      // Override Leaflet inline width setelah popup dibuka di mobile
+      map.on('popupopen', function(e) {
+        const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        if (!isMobile) return;
+        const contentEl = e.popup.getElement()?.querySelector('.leaflet-popup-content');
+        if (contentEl) {
+          contentEl.style.width = 'auto';
+          contentEl.style.maxWidth = '170px';
+          contentEl.style.overflowX = 'hidden';
+          contentEl.style.wordBreak = 'break-word';
+          contentEl.style.boxSizing = 'border-box';
+        }
+        const wrapperEl = e.popup.getElement()?.querySelector('.leaflet-popup-content-wrapper');
+        if (wrapperEl) {
+          wrapperEl.style.maxWidth = '190px';
+          wrapperEl.style.width = '190px';
+        }
+      });
+
 const _popupWidth = () => window.innerWidth <= 480 ? Math.min(220, window.innerWidth - 40) : 280;
       const getPelData = () => stateData.pelabuhan ? stateData.pelabuhan.data[0] : null;
       const getPerData = (keyword) => {

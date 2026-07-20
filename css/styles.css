@@ -19,6 +19,28 @@ body {
 
 @media (max-width: 768px) {
   #map { height: 360px; }
+
+  /* Kompas lebih kecil di mobile */
+  .map-compass-size {
+    width: 54px !important;
+    height: 54px !important;
+    top: 0.5rem !important;
+    right: 0.5rem !important;
+  }
+  .map-compass-size svg {
+    width: 54px !important;
+    height: 54px !important;
+  }
+  #compass-legend-btn {
+    top: 4rem !important;
+    right: 0.5rem !important;
+  }
+  #compass-legend {
+    top: 5.2rem !important;
+    right: 0.5rem !important;
+    min-width: 160px !important;
+    font-size: 9px !important;
+  }
 }
 
 .glass {
